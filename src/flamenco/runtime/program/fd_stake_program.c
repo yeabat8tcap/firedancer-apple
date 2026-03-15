@@ -681,7 +681,7 @@ acceptable_reference_epoch_credits( fd_vote_epoch_credits_t * epoch_credits,
   ulong len            = deq_fd_vote_epoch_credits_t_cnt( epoch_credits );
   ulong epoch_index[1] = { ULONG_MAX };
   // FIXME FD_LIKELY
-  if( !__builtin_usubl_overflow( len, MINIMUM_DELINQUENT_EPOCHS_FOR_DEACTIVATION, epoch_index ) ) {
+  if( !__builtin_sub_overflow( len, MINIMUM_DELINQUENT_EPOCHS_FOR_DEACTIVATION, epoch_index ) ) {
     ulong epoch = current_epoch;
     for( ulong i = len - 1; i>=*epoch_index; i-- ) {
       ulong vote_epoch = deq_fd_vote_epoch_credits_t_peek_index( epoch_credits, i )->epoch;
