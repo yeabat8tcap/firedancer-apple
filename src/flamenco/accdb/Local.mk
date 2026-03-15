@@ -37,7 +37,10 @@ endif
 
 # Debug APIs
 $(call add-hdrs,fd_accdb_fsck.h)
-$(call add-objs,fd_accdb_fsck_funk fd_accdb_fsck_vinyl,fd_flamenco)
+$(call add-objs,fd_accdb_fsck_funk,fd_flamenco)
+ifdef FD_HAS_LINUX
+$(call add-objs,fd_accdb_fsck_vinyl,fd_flamenco)
+endif
 ifdef FD_HAS_LZ4
 $(call make-bin,fd_accdb_ctl,fd_accdb_ctl,fd_vinyl fd_tango fd_ballet fd_util)
 endif
