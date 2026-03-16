@@ -36,12 +36,20 @@
    cases. */
 
 #define FD_SHMEM_UNKNOWN_LG_PAGE_SZ  (-1)
+#if defined(__APPLE__) && defined(__aarch64__)
+#define FD_SHMEM_NORMAL_LG_PAGE_SZ   (14)
+#else
 #define FD_SHMEM_NORMAL_LG_PAGE_SZ   (12)
+#endif
 #define FD_SHMEM_HUGE_LG_PAGE_SZ     (21)
 #define FD_SHMEM_GIGANTIC_LG_PAGE_SZ (30)
 
 #define FD_SHMEM_UNKNOWN_PAGE_SZ           (0UL)
+#if defined(__APPLE__) && defined(__aarch64__)
+#define FD_SHMEM_NORMAL_PAGE_SZ        (16384UL)
+#else
 #define FD_SHMEM_NORMAL_PAGE_SZ         (4096UL)
+#endif
 #define FD_SHMEM_HUGE_PAGE_SZ        (2097152UL)
 #define FD_SHMEM_GIGANTIC_PAGE_SZ (1073741824UL)
 

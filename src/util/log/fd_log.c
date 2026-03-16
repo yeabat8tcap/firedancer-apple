@@ -1539,6 +1539,16 @@ fd_log_private_stack_discover( ulong   stack_sz,
   FD_VOLATILE( stack_mem[0] ) = (uchar)1; /* Paranoia to make sure compiler puts this in stack */
   ulong stack_addr = (ulong)stack_mem;
 
+#ifdef __APPLE__
+#include <pthread.h>
+  (void)stack_addr; /* Suppress unused variable warning */
+  pthread_t thread = pthread_self();
+  stack1 = (ulong)pthread_get_stackaddr_np( thread );
+  stack0 = stack1 - (ulong)pthread_get_stacksize_np( thread );
+  *_stack0 = stack0;
+  *_stack1 = stack1;
+  return;
+#else
   int filefd;
   if( FD_UNLIKELY( ( filefd = open( "/proc/self/maps", O_RDONLY ) ) < 0 ) ) {
     FD_LOG_WARNING(( "open( \"/proc/self/maps\" ) failed (%i-%s)", errno, fd_io_strerror( errno ) ));
@@ -1620,6 +1630,7 @@ fd_log_private_stack_discover( ulong   stack_sz,
 
   *_stack0 = stack0;
   *_stack1 = stack1;
+#endif
 }
 
 

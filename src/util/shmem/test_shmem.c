@@ -14,7 +14,11 @@ FD_STATIC_ASSERT( FD_SHMEM_NUMA_MAX> 0L,                unit_test );
 FD_STATIC_ASSERT( FD_SHMEM_CPU_MAX >=FD_SHMEM_NUMA_MAX, unit_test );
 
 FD_STATIC_ASSERT( FD_SHMEM_UNKNOWN_LG_PAGE_SZ ==-1, unit_test );
+#if defined(__APPLE__) && defined(__aarch64__)
+FD_STATIC_ASSERT( FD_SHMEM_NORMAL_LG_PAGE_SZ  ==14, unit_test );
+#else
 FD_STATIC_ASSERT( FD_SHMEM_NORMAL_LG_PAGE_SZ  ==12, unit_test );
+#endif
 FD_STATIC_ASSERT( FD_SHMEM_HUGE_LG_PAGE_SZ    ==21, unit_test );
 FD_STATIC_ASSERT( FD_SHMEM_GIGANTIC_LG_PAGE_SZ==30, unit_test );
 
@@ -107,7 +111,7 @@ main( int     argc,
   FD_TEST( fd_cstr_to_shmem_lg_page_sz( "30"       )==FD_SHMEM_GIGANTIC_LG_PAGE_SZ );
 
   FD_TEST( !strcmp( fd_shmem_lg_page_sz_to_cstr(  0 ), "unknown"  ) );
-  FD_TEST( !strcmp( fd_shmem_lg_page_sz_to_cstr( 12 ), "normal"   ) );
+  FD_TEST( !strcmp( fd_shmem_lg_page_sz_to_cstr( FD_SHMEM_NORMAL_LG_PAGE_SZ ), "normal"   ) );
   FD_TEST( !strcmp( fd_shmem_lg_page_sz_to_cstr( 21 ), "huge"     ) );
   FD_TEST( !strcmp( fd_shmem_lg_page_sz_to_cstr( 30 ), "gigantic" ) );
 
@@ -126,7 +130,7 @@ main( int     argc,
   FD_TEST( fd_cstr_to_shmem_page_sz( "1073741824" )==FD_SHMEM_GIGANTIC_PAGE_SZ );
 
   FD_TEST( !strcmp( fd_shmem_page_sz_to_cstr(          0UL ), "unknown"  ) );
-  FD_TEST( !strcmp( fd_shmem_page_sz_to_cstr(       4096UL ), "normal"   ) );
+  FD_TEST( !strcmp( fd_shmem_page_sz_to_cstr( FD_SHMEM_NORMAL_PAGE_SZ ), "normal"   ) );
   FD_TEST( !strcmp( fd_shmem_page_sz_to_cstr(    2097152UL ), "huge"     ) );
   FD_TEST( !strcmp( fd_shmem_page_sz_to_cstr( 1073741824UL ), "gigantic" ) );
 

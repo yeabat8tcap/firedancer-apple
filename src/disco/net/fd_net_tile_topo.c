@@ -83,12 +83,11 @@ fd_topos_net_tiles( fd_topo_t *             topo,
                     ulong                   netlnk_max_neighbors,
                     int                     xsk_core_dump,
                     ulong const             tile_to_cpu[ FD_TILE_MAX ] ) {
-  /* net_umem: Packet buffers */
-  fd_topob_wksp( topo, "net_umem" );
-
   /* Create workspaces */
 
   if( 0==strcmp( net_cfg->provider, "xdp" ) ) {
+    /* net_umem: Packet buffers */
+    fd_topob_wksp( topo, "net_umem" );
 
     /* net: private working memory of the net tiles */
     fd_topob_wksp( topo, "net" );
@@ -211,7 +210,7 @@ fd_topos_net_rx_link( fd_topo_t *  topo,
     add_xdp_rx_link( topo, link_name, net_kind_id, depth );
     fd_topob_tile_out( topo, "net", net_kind_id, link_name, net_kind_id );
   } else {
-    fd_topob_link( topo, link_name, "net_umem", depth, FD_NET_MTU, 64 );
+    fd_topob_link( topo, link_name, "sock", depth, FD_NET_MTU, 64 );
     fd_topob_tile_out( topo, "sock", net_kind_id, link_name, net_kind_id );
   }
 }

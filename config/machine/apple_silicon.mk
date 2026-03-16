@@ -50,11 +50,11 @@ BZIP2_LIBS:=-lbz2
 
 # Global flags
 CPPFLAGS += -DFD_HAS_ZSTD=1 -DFD_HAS_LZ4=1 -DFD_HAS_BLST=1 -DFD_HAS_OPENSSL=1 -DFD_HAS_S2NBIGNUM=1 -DFD_HAS_BZIP2=1
-CPPFLAGS += -I/opt/homebrew/opt/secp256k1/include -I/opt/homebrew/opt/bzip2/include
+CPPFLAGS += -I/opt/homebrew/opt/secp256k1/include -I/opt/homebrew/opt/bzip2/include -I/opt/homebrew/include
 
 LDFLAGS  += -L./opt/lib -lzstd -llz4 -lblst -lssl -lcrypto -ls2n-bignum -lbz2
 LDFLAGS  += -L/opt/homebrew/opt/secp256k1/lib -lsecp256k1
-LDFLAGS  += -L/opt/homebrew/opt/bzip2/lib
+LDFLAGS  += -L/opt/homebrew/opt/bzip2/lib -L/opt/homebrew/lib -lrocksdb
 
 # Architecture support (ARM64)
 FD_HAS_ARM:=1

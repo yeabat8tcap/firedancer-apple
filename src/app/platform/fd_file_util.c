@@ -10,6 +10,10 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
+
 int
 fd_file_util_read_ulong( char const * path,
                          ulong *      value ) {
@@ -171,6 +175,13 @@ fd_file_util_rmtree( char const * path,
 
 int
 fd_file_util_self_exe( char path[ static PATH_MAX ] ) {
+#ifdef __APPLE__
+  uint32_t size = PATH_MAX;
+  if ( _NSGetExecutablePath(path, &size) == 0 ) {
+    return 0;
+  }
+  return -1;
+#else
   long count = readlink( "/proc/self/exe", path, PATH_MAX );
   if( FD_UNLIKELY( -1==count ) ) return -1;
   if( FD_UNLIKELY( count>=PATH_MAX ) ) {
@@ -180,6 +191,7 @@ fd_file_util_self_exe( char path[ static PATH_MAX ] ) {
 
   path[ count ] = '\0';
   return 0;
+#endif
 }
 
 char *

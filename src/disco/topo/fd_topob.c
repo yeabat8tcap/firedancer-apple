@@ -451,9 +451,9 @@ fd_topob_auto_layout_cpus( fd_topo_t *      topo,
   int   pairs_assigned[ FD_TILE_MAX ] = { 0 };
 
 # ifndef __linux__
-  cpus->cpu_cnt = 24UL;
+  cpus->cpu_cnt = 64UL;
   cpus->numa_node_cnt = 1UL;
-  for( ulong i=0UL; i<24UL; i++ ) {
+  for( ulong i=0UL; i<64UL; i++ ) {
     cpus->cpu[ i ].idx = i;
     cpus->cpu[ i ].online = 1;
     cpus->cpu[ i ].numa_node = 0UL;
