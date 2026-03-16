@@ -229,6 +229,13 @@ init( config_t const * config ) {
   if( FD_UNLIKELY( -1==fd_file_util_mkdir_all( genesis_path, config->uid, config->gid, 0 ) ) )
     FD_LOG_ERR(( "could not create ledger directory `%s` (%i-%s)", genesis_path, errno, fd_io_strerror( errno ) ));
 
+#ifdef __APPLE__
+  if( FD_UNLIKELY( !config->is_firedancer ) ) {
+    if( FD_UNLIKELY( -1==chmod( config->frankendancer.paths.ledger, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH ) ) )
+      FD_LOG_ERR(( "could not chmod ledger directory `%s` (%i-%s)", config->frankendancer.paths.ledger, errno, fd_io_strerror( errno ) ));
+  }
+#endif
+
   static uchar blob[ 1UL<<24UL ];
   ulong blob_sz = create_genesis( config, blob, sizeof(blob) );
 

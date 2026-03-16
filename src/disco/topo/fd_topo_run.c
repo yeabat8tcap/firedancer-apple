@@ -292,10 +292,10 @@ run_tile_thread( fd_topo_t *         topo,
     /* set the thread affinity before we clone the new process to ensure
        kernel first touch happens on the desired thread. */
     fd_cpuset_insert( cpu_set, tile->cpu_idx );
-    if( FD_UNLIKELY( -1==setpriority( PRIO_PROCESS, 0, -19 ) ) ) FD_LOG_ERR(( "setpriority() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+    if( FD_UNLIKELY( -1==setpriority( PRIO_PROCESS, 0, -19 ) ) ) FD_LOG_WARNING(( "setpriority() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
   } else {
     fd_memcpy( cpu_set, floating_cpu_set, fd_cpuset_footprint() );
-    if( FD_UNLIKELY( -1==setpriority( PRIO_PROCESS, 0, floating_priority ) ) ) FD_LOG_ERR(( "setpriority() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+    if( FD_UNLIKELY( -1==setpriority( PRIO_PROCESS, 0, floating_priority ) ) ) FD_LOG_WARNING(( "setpriority() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
   }
 
   if( FD_UNLIKELY( fd_cpuset_setaffinity( 0, cpu_set ) ) ) {

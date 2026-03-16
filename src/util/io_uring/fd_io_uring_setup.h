@@ -21,11 +21,17 @@ FD_FN_UNUSED static fd_io_uring_params_t *
 fd_io_uring_params_init( fd_io_uring_params_t * params,
                          uint                   depth ) {
   memset( params, 0, sizeof(fd_io_uring_params_t) );
+#ifdef IORING_SETUP_CQSIZE
   params->flags      |= IORING_SETUP_CQSIZE;
+#endif
   params->sq_entries  = depth;
   params->cq_entries  = depth;
+#ifdef IORING_SETUP_SINGLE_ISSUER
   params->flags      |= IORING_SETUP_SINGLE_ISSUER;
+#endif
+#ifdef IORING_SETUP_R_DISABLED
   params->flags      |= IORING_SETUP_R_DISABLED;
+#endif
   return params;
 }
 
@@ -35,14 +41,8 @@ void * fd_io_uring_fini( fd_io_uring_t * ring );
 
 #else /* !__linux__ */
 
-static inline fd_io_uring_params_t *
-fd_io_uring_params_init( fd_io_uring_params_t * params,
-                         uint                   depth ) {
-  (void)depth;
-  memset( params, 0, sizeof(fd_io_uring_params_t) );
-  return params;
-}
-
+static inline void * fd_io_uring_params_init( void * params, uint depth ) { (void)params; (void)depth; return NULL; }
+static inline fd_io_uring_t * fd_io_uring_init_mmap( fd_io_uring_t * ring, void * params ) { (void)ring; (void)params; return NULL; }
 static inline ulong fd_io_uring_shmem_align( void ) { return 1UL; }
 static inline ulong fd_io_uring_shmem_footprint( ulong sq_depth, ulong cq_depth ) { (void)sq_depth; (void)cq_depth; return 0UL; }
 static inline fd_io_uring_t * fd_io_uring_init_shmem( fd_io_uring_t * ring, fd_io_uring_params_t * params, void * shmem, ulong sq_depth, ulong cq_depth ) { (void)ring; (void)params; (void)shmem; (void)sq_depth; (void)cq_depth; return NULL; }

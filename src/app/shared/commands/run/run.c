@@ -157,10 +157,12 @@ create_clone_stack( void ) {
 
 
 static int
-execve_agave( int config_memfd,
-                    int pipefd ) {
-  if( FD_UNLIKELY( -1==fcntl( pipefd,       F_SETFD, 0 ) ) ) FD_LOG_ERR(( "fcntl(F_SETFD,0) failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+execve_agave( config_t const * config,
+              int              config_memfd,
+              int              pipefd ) {
+  if( FD_UNLIKELY( -1==fcntl( config->log.lock_fd, F_SETFD, 0 ) ) ) FD_LOG_ERR(( "fcntl(F_SETFD,0) failed (%i-%s)", errno, fd_io_strerror( errno ) ));
   if( FD_UNLIKELY( -1==fcntl( config_memfd, F_SETFD, 0 ) ) ) FD_LOG_ERR(( "fcntl(F_SETFD,0) failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+  if( FD_UNLIKELY( -1==fcntl( pipefd, F_SETFD, 0 ) ) ) FD_LOG_ERR(( "fcntl(F_SETFD,0) failed (%i-%s)", errno, fd_io_strerror( errno ) ));
   pid_t child = fork();
   if( FD_UNLIKELY( -1==child ) ) FD_LOG_ERR(( "fork() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
   if( FD_LIKELY( !child ) ) {
@@ -169,7 +171,9 @@ execve_agave( int config_memfd,
 
     char config_fd[ 32 ];
     FD_TEST( fd_cstr_printf_check( config_fd, sizeof( config_fd ), NULL, "%d", config_memfd ) );
-    char * args[ 5 ] = { _current_executable_path, "run-agave", "--config-fd", config_fd, NULL };
+    char pipe_fd_str[ 32 ];
+    FD_TEST( fd_cstr_printf_check( pipe_fd_str, sizeof( pipe_fd_str ), NULL, "%d", pipefd ) );
+    char * args[ 7 ] = { _current_executable_path, "run-agave", "--config-fd", config_fd, "--pipe-fd", pipe_fd_str, NULL };
 
     char * envp[] = { NULL, NULL };
     char * google_creds = getenv( "GOOGLE_APPLICATION_CREDENTIALS" );
@@ -179,7 +183,11 @@ execve_agave( int config_memfd,
       envp[ 0 ] = provide_creds;
     }
 
-    if( FD_UNLIKELY( -1==execve( _current_executable_path, args, envp ) ) ) FD_LOG_ERR(( "execve() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+#ifdef __APPLE__
+    if( FD_UNLIKELY( -1==execv( _current_executable_path, (char **)args ) ) ) FD_LOG_ERR(( "execv() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+#else
+    if( FD_UNLIKELY( -1==execve( _current_executable_path, (char **)args, envp ) ) ) FD_LOG_ERR(( "execve() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+#endif
   } else {
     if( FD_UNLIKELY( -1==fcntl( pipefd,       F_SETFD, FD_CLOEXEC ) ) ) FD_LOG_ERR(( "fcntl(F_SETFD,FD_CLOEXEC) failed (%i-%s)", errno, fd_io_strerror( errno ) ));
     if( FD_UNLIKELY( -1==fcntl( config_memfd, F_SETFD, FD_CLOEXEC ) ) ) FD_LOG_ERR(( "fcntl(F_SETFD,FD_CLOEXEC) failed (%i-%s)", errno, fd_io_strerror( errno ) ));
@@ -189,7 +197,8 @@ execve_agave( int config_memfd,
 }
 
 static pid_t
-execve_tile( fd_topo_tile_t const * tile,
+execve_tile( config_t const *       config,
+             fd_topo_tile_t const * tile,
              fd_cpuset_t const *    floating_cpu_set,
              int                    floating_priority,
              int                    config_memfd,
@@ -199,10 +208,24 @@ execve_tile( fd_topo_tile_t const * tile,
     /* set the thread affinity before we clone the new process to ensure
         kernel first touch happens on the desired thread. */
     fd_cpuset_insert( cpu_set, tile->cpu_idx );
-    if( FD_UNLIKELY( -1==setpriority( PRIO_PROCESS, 0, -19 ) ) ) FD_LOG_ERR(( "setpriority() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+    if( FD_UNLIKELY( -1==setpriority( PRIO_PROCESS, 0, -19 ) ) ) {
+#ifdef __APPLE__
+      if( errno!=EACCES ) FD_LOG_ERR(( "setpriority() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+      FD_LOG_WARNING(( "setpriority() failed (%i-%s); continuing with default priority", errno, fd_io_strerror( errno ) ));
+#else
+      FD_LOG_ERR(( "setpriority() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+#endif
+    }
   } else {
     fd_memcpy( cpu_set, floating_cpu_set, fd_cpuset_footprint() );
-    if( FD_UNLIKELY( -1==setpriority( PRIO_PROCESS, 0, floating_priority ) ) ) FD_LOG_ERR(( "setpriority() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+    if( FD_UNLIKELY( -1==setpriority( PRIO_PROCESS, 0, floating_priority ) ) ) {
+#ifdef __APPLE__
+      if( errno!=EACCES ) FD_LOG_ERR(( "setpriority() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+      FD_LOG_WARNING(( "setpriority() failed (%i-%s); continuing with default priority", errno, fd_io_strerror( errno ) ));
+#else
+      FD_LOG_ERR(( "setpriority() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+#endif
+    }
   }
 
   if( FD_UNLIKELY( fd_cpuset_setaffinity( 0, cpu_set ) ) ) {
@@ -217,8 +240,8 @@ execve_tile( fd_topo_tile_t const * tile,
   }
 
   /* Clear CLOEXEC on the side of the pipe we want to pass to the tile. */
-  if( FD_UNLIKELY( -1==fcntl( pipefd,       F_SETFD, 0 ) ) ) FD_LOG_ERR(( "fcntl(F_SETFD,0) failed (%i-%s)", errno, fd_io_strerror( errno ) ));
   if( FD_UNLIKELY( -1==fcntl( config_memfd, F_SETFD, 0 ) ) ) FD_LOG_ERR(( "fcntl(F_SETFD,0) failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+  if( FD_UNLIKELY( -1==fcntl( pipefd, F_SETFD, 0 ) ) ) FD_LOG_ERR(( "fcntl(F_SETFD,0) failed (%i-%s)", errno, fd_io_strerror( errno ) ));
   pid_t child = fork();
   if( FD_UNLIKELY( -1==child ) ) FD_LOG_ERR(( "fork() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
   if( FD_LIKELY( !child ) ) {
@@ -229,6 +252,7 @@ execve_tile( fd_topo_tile_t const * tile,
     FD_TEST( fd_cstr_printf_check( kind_id,   sizeof( kind_id ),   NULL, "%lu", tile->kind_id ) );
     FD_TEST( fd_cstr_printf_check( config_fd, sizeof( config_fd ), NULL, "%d",  config_memfd ) );
     FD_TEST( fd_cstr_printf_check( pipe_fd,   sizeof( pipe_fd ),   NULL, "%d",  pipefd ) );
+    if( FD_UNLIKELY( -1==fcntl( config->log.lock_fd, F_SETFD, 0 ) ) ) FD_LOG_ERR(( "fcntl(F_SETFD,0) failed (%i-%s)", errno, fd_io_strerror( errno ) ));
     char const * args[ 9 ] = { _current_executable_path, "run1", tile->name, kind_id, "--pipe-fd", pipe_fd, "--config-fd", config_fd, NULL };
     if( FD_UNLIKELY( -1==execve( _current_executable_path, (char **)args, NULL ) ) ) FD_LOG_ERR(( "execve() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
   } else {
@@ -291,7 +315,7 @@ main_pid_namespace( void * _args ) {
     int pipefd[ 2 ];
     if( FD_UNLIKELY( pipe2( pipefd, O_CLOEXEC ) ) ) FD_LOG_ERR(( "pipe2() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
     fds[ child_cnt ] = (struct pollfd){ .fd = pipefd[ 0 ], .events = 0 };
-    child_pids[ child_cnt ] = execve_agave( config_memfd, pipefd[ 1 ] );
+    child_pids[ child_cnt ] = execve_agave( config, config_memfd, pipefd[ 1 ] );
     FD_TEST( child_pids[ child_cnt ]>0 );
     actual_pids[ child_cnt ] = (ulong)child_pids[ child_cnt ];
     child_idxs[ child_cnt ] = ULONG_MAX;
@@ -339,7 +363,7 @@ main_pid_namespace( void * _args ) {
     int pipefd[ 2 ];
     if( FD_UNLIKELY( pipe2( pipefd, O_CLOEXEC ) ) ) FD_LOG_ERR(( "pipe2() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
     fds[ child_cnt ] = (struct pollfd){ .fd = pipefd[ 0 ], .events = 0 };
-    child_pids[ child_cnt ] = execve_tile( tile, floating_cpu_set, save_priority, config_memfd, pipefd[ 1 ] );
+    child_pids[ child_cnt ] = execve_tile( config, tile, floating_cpu_set, save_priority, config_memfd, pipefd[ 1 ] );
     child_idxs[ child_cnt ] = i;
     if( FD_UNLIKELY( close( pipefd[ 1 ] ) ) ) FD_LOG_ERR(( "close() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
     strncpy( child_names[ child_cnt ], tile->name, 32 );
@@ -416,6 +440,7 @@ main_pid_namespace( void * _args ) {
   int lock = 0;
   fd_log_private_shared_lock = &lock;
 
+#ifdef __linux__
   /* Reap child process PIDs so they don't show up in `ps` etc.  All of
      these children should have exited immediately after clone(2)'ing
      another child with a huge page based stack. */
@@ -435,10 +460,12 @@ main_pid_namespace( void * _args ) {
       fd_sys_util_exit_group( WEXITSTATUS( wstatus ) ? WEXITSTATUS( wstatus ) : 1 );
     }
   }
+#endif
 
   fds[ child_cnt ] = (struct pollfd){ .fd = args->pipefd[ 1 ], .events = 0 };
   strncpy( child_names[ child_cnt ], "parent", 32UL );
   child_idxs[ child_cnt ] = ULONG_MAX;
+  for( ulong i=0UL; i<child_cnt; i++ ) fds[ i ].events = POLLIN;
 
   /* We are now the init process of the pid namespace.  If the init
      process dies, all children are terminated.  If any child dies, we

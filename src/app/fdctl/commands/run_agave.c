@@ -143,7 +143,11 @@ agave_boot( config_t const * config ) {
   if( strcmp( config->frankendancer.rpc.bind_address, "" ) ) ADD( "--rpc-bind-address", config->frankendancer.rpc.bind_address );
   if( config->frankendancer.rpc.transaction_history ) ADD1( "--enable-rpc-transaction-history" );
   if( config->frankendancer.rpc.extended_tx_metadata_storage ) ADD1( "--enable-extended-tx-metadata-storage" );
-  if( config->frankendancer.rpc.only_known ) ADD1( "--only-known-rpc" );
+  if( config->frankendancer.rpc.only_known ) {
+#ifdef __linux__
+    ADD1( "--only-known-rpc" );
+#endif
+  }
   if( config->frankendancer.rpc.pubsub_enable_block_subscription ) ADD1( "--rpc-pubsub-enable-block-subscription" );
   if( config->frankendancer.rpc.pubsub_enable_vote_subscription ) ADD1( "--rpc-pubsub-enable-vote-subscription" );
   if( config->frankendancer.rpc.bigtable_ledger_storage ) ADD1( "--enable-rpc-bigtable-ledger-storage" );
@@ -167,25 +171,7 @@ agave_boot( config_t const * config ) {
   ADDU( "--maximum-snapshot-download-abort", config->frankendancer.snapshots.maximum_snapshot_download_abort );
   ADDU( "--minimal-snapshot-download-speed", config->frankendancer.snapshots.minimum_snapshot_download_speed );
 
-  uint replay_threads;
-  if( config->frankendancer.layout.agave_unified_scheduler_handler_threads ) {
-    if( FD_UNLIKELY( config->frankendancer.layout.agave_unified_scheduler_handler_threads>config->topo.agave_affinity_cnt ) ) {
-      FD_LOG_ERR(( "Trying to spawn %u handler threads but the agave subprocess has %lu cores. "
-                   "Either increase the number of cores in [layout.agave_affinity] or reduce "
-                   "the number of threads in [layout.agave_unified_scheduler_handler_threads].",
-                   config->frankendancer.layout.agave_unified_scheduler_handler_threads, config->topo.agave_affinity_cnt ));
-    }
-    replay_threads = config->frankendancer.layout.agave_unified_scheduler_handler_threads;
-  } else {
-    //          agave_affinity_cnt >= 8  =>  agave_affinity_cnt - 4
-    //     4 <= agave_affinity_cnt <  8  =>  4
-    //          agave_affinity_cnt <  4  =>  agave_affinity_cnt
-    replay_threads = (uint)fd_ulong_if( config->topo.agave_affinity_cnt>=4UL,
-                                        fd_ulong_if( config->topo.agave_affinity_cnt>=8UL, config->topo.agave_affinity_cnt-4UL, 4UL ),
-                                        config->topo.agave_affinity_cnt );
-  }
-  ADDU( "--unified-scheduler-handler-threads", replay_threads );
-  ADDU( "--replay-transactions-threads", replay_threads );
+  /* Thread count arguments removed as they are not supported by this Agave version */
 
   argv[ idx ] = NULL;
 
@@ -259,7 +245,14 @@ agave_main( void * args ) {
 }
 
 void
-run_agave_cmd_fn( args_t *   args FD_PARAM_UNUSED,
+run_agave_cmd_args( int *    pargc,
+                    char *** pargv,
+                    args_t * args ) {
+  args->run_agave.pipe_fd = fd_env_strip_cmdline_int( pargc, pargv, "--pipe-fd", NULL, -1 );
+}
+
+void
+run_agave_cmd_fn( args_t *   args,
                   config_t * config ) {
   fd_log_thread_set( "agave" );
 
@@ -275,17 +268,26 @@ run_agave_cmd_fn( args_t *   args FD_PARAM_UNUSED,
   pid_t clone_pid = clone( agave_main, (uchar *)stack + FD_TILE_PRIVATE_STACK_SZ, flags, config );
   if( FD_UNLIKELY( clone_pid<0 ) ) FD_LOG_ERR(( "clone() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
 # else
-  pid_t fork_pid = fork();
-  if( FD_UNLIKELY( fork_pid<0 ) ) FD_LOG_ERR(( "fork() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
-  if( FD_UNLIKELY( !fork_pid ) ) {
-    exit( agave_main( config ) );
-  }
+  pid_t fork_pid = getpid();
 # endif
+
+  if( FD_LIKELY( args->run_agave.pipe_fd!=-1 ) ) {
+# ifdef __linux__
+    ulong pid = (ulong)clone_pid;
+# else
+    ulong pid = (ulong)fork_pid;
+# endif
+    if( FD_UNLIKELY( 8UL!=write( args->run_agave.pipe_fd, &pid, 8UL ) ) ) FD_LOG_ERR(( "write() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+  }
+
+#ifndef __linux__
+  exit( agave_main( config ) );
+#endif
 }
 
 action_t fd_action_run_agave = {
   .name        = "run-agave",
-  .args        = NULL,
+  .args        = run_agave_cmd_args,
   .fn          = run_agave_cmd_fn,
   .perm        = NULL,
   .description = "Start up the Agave side of a Firedancer validator",

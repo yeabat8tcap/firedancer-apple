@@ -642,11 +642,14 @@ fd_config_to_memfd( fd_config_t const * config ) {
 # ifdef __linux__
   int config_memfd = memfd_create( "fd_config", 0 );
 # else
-  char name[] = "/tmp/fd_config_XXXXXX";
-  int config_memfd = mkstemp( name );
-  if ( config_memfd != -1 ) {
-    unlink( name );
+  char name[ 64 ];
+  fd_cstr_printf_check( name, sizeof(name), NULL, "/fd_config_%d", getpid() );
+  int config_memfd = shm_open( name, O_RDWR | O_CREAT | O_EXCL, 0600 );
+  if( FD_UNLIKELY( -1==config_memfd ) ) {
+    shm_unlink( name );
+    config_memfd = shm_open( name, O_RDWR | O_CREAT | O_EXCL, 0600 );
   }
+  if( FD_LIKELY( -1!=config_memfd ) ) shm_unlink( name );
 # endif
   if( FD_UNLIKELY( -1==config_memfd ) ) return -1;
   if( FD_UNLIKELY( -1==ftruncate( config_memfd, sizeof( config_t ) ) ) ) {

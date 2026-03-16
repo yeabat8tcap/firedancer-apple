@@ -35,6 +35,9 @@ $(call add-objs,commands/configure/hugetlbfs,fdctl_shared)
 $(call add-objs,commands/configure/hyperthreads,fdctl_shared)
 $(call add-objs,commands/configure/sysctl,fdctl_shared)
 endif
+ifdef FD_HAS_DARWIN
+$(call add-objs,commands/configure/snapshots,fdctl_shared)
+endif
 
 endif
 endif

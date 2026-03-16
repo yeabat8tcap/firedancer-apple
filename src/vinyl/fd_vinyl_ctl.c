@@ -40,6 +40,9 @@ fd_vinyl_main( int     argc,
   char const * info      = fd_env_strip_cmdline_cstr ( &argc, &argv, "--info",     NULL, NULL            );
   ulong        io_seed   = fd_env_strip_cmdline_ulong( &argc, &argv, "--io-seed",  NULL, 0UL             );
 
+#ifndef O_NOATIME
+#define O_NOATIME 0
+#endif
   int   open_flags = O_RDWR | (dsync ? O_DSYNC : 0 ) | (direct ? O_DIRECT : 0) | (noatime ? O_NOATIME : 0);
   ulong page_sz    = fd_cstr_to_shmem_page_sz( _page_sz );
   ulong info_sz    = info ? (strlen( info )+1UL) : 0UL;

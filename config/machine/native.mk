@@ -1,5 +1,7 @@
 ifeq ($(shell uname -s),Darwin)
   FD_HAS_DARWIN:=1
+  FD_HAS_HOSTED:=1
+  CPPFLAGS+=-DFD_HAS_HOSTED=1
   CC:=clang
   CXX:=clang++
   LD:=clang++

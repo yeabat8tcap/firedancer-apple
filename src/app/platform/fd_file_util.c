@@ -9,6 +9,9 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
@@ -176,11 +179,12 @@ fd_file_util_rmtree( char const * path,
 int
 fd_file_util_self_exe( char path[ static PATH_MAX ] ) {
 #ifdef __APPLE__
-  uint32_t size = PATH_MAX;
-  if ( _NSGetExecutablePath(path, &size) == 0 ) {
-    return 0;
-  }
-  return -1;
+  uint sz = PATH_MAX;
+  if( FD_UNLIKELY( _NSGetExecutablePath( path, &sz ) ) ) return -1;
+  char real_path[ PATH_MAX ];
+  if( FD_UNLIKELY( !realpath( path, real_path ) ) ) return -1;
+  strncpy( path, real_path, PATH_MAX );
+  return 0;
 #else
   long count = readlink( "/proc/self/exe", path, PATH_MAX );
   if( FD_UNLIKELY( -1==count ) ) return -1;

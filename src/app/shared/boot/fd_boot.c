@@ -32,7 +32,7 @@ fdctl_tile_run( fd_topo_tile_t const * tile ) {
 static void
 copy_config_from_fd( int        config_fd,
                      config_t * config ) {
-  uchar * bytes = mmap( NULL, sizeof( config_t ), PROT_READ, MAP_PRIVATE, config_fd, 0 );
+  uchar * bytes = mmap( NULL, sizeof( config_t ), PROT_READ, MAP_SHARED, config_fd, 0 );
   if( FD_UNLIKELY( bytes == MAP_FAILED ) ) FD_LOG_ERR(( "mmap() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
   fd_memcpy( config, bytes, sizeof( config_t ) );
   if( FD_UNLIKELY( munmap( bytes, sizeof( config_t ) ) ) ) FD_LOG_ERR(( "munmap() failed (%i-%s)", errno, fd_io_strerror( errno ) ));

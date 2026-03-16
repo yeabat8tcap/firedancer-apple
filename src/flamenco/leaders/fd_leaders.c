@@ -77,6 +77,11 @@ fd_epoch_leaders_new( void  *                  shmem,
 
     /* Sort [(vote, id, stake)] by stake then id, as expected */
     sort_vote_weights_by_stake_id_inplace( stakes, pub_cnt );
+
+    /* Filter out zero-stake validators */
+    while( pub_cnt > 0 && stakes[ pub_cnt - 1 ].stake == 0 ) {
+      pub_cnt--;
+    }
   }
 
   /* The eventual layout that we want is:

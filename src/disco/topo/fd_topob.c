@@ -613,15 +613,22 @@ initialize_numa_assignments( fd_topo_t * topo ) {
     for( ulong j=0UL; j<topo->obj_cnt; j++ ) {
       fd_topo_obj_t * obj = &topo->objs[ j ];
       if( obj->wksp_id!=i ) continue;
-      if( FD_UNLIKELY( !obj->footprint ) ) FD_LOG_ERR(( "obj %lu (%s) has invalid parameters", j, obj->name ));
+      if( FD_UNLIKELY( !obj->footprint ) ) {
+        if( strcmp( obj->name, "tile" ) ) {
+          FD_LOG_ERR(( "obj %lu (%s) has invalid parameters", j, obj->name ));
+        }
+      }
 
-      if( FD_UNLIKELY( !max_footprint || obj->footprint>max_footprint ) ) {
+      if( FD_UNLIKELY( max_obj==ULONG_MAX || obj->footprint>max_footprint ) ) {
         max_footprint = obj->footprint;
         max_obj = j;
       }
     }
 
-    if( FD_UNLIKELY( max_obj==ULONG_MAX ) ) FD_LOG_ERR(( "no object found for workspace %s", topo->workspaces[ i ].name ));
+    if( FD_UNLIKELY( max_obj==ULONG_MAX ) ) {
+      topo->workspaces[ i ].numa_idx = 0;
+      continue;
+    }
 
     int found_strict   = 0;
     int found_lazy     = 0;

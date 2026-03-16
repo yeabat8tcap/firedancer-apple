@@ -354,6 +354,10 @@ typedef unsigned long  u_long;
 #define MADV_DONTFORK 0
 #endif
 
+#ifndef MADV_WIPEONFORK
+#define MADV_WIPEONFORK 0
+#endif
+
 #ifndef SIGPOLL
 #define SIGPOLL 7 /* Standard value is 7, matches SIGEMT on macOS */
 #endif
@@ -514,6 +518,8 @@ static inline void populate_sock_filter_policy_run( ulong a, struct sock_filter 
 #define sock_filter_policy_fd_shredcap_tile_instr_cnt 0
 #define sock_filter_policy_fd_resolv_tile_instr_cnt 0
 #define sock_filter_policy_fd_tower_tile_instr_cnt 0
+#define sock_filter_policy_fd_rpc_tile_instr_cnt 0
+#define sock_filter_policy_fd_replay_tile_instr_cnt 0
 #define sock_filter_policy_fd_execrp_tile_instr_cnt 0
 #define sock_filter_policy_fd_execle_tile_instr_cnt 0
 #define sock_filter_policy_fd_repair_tile_instr_cnt 0
@@ -532,6 +538,8 @@ static inline void populate_sock_filter_policy_run( ulong a, struct sock_filter 
 
 static inline void populate_sock_filter_policy_fd_txsend_tile( ulong a, struct sock_filter * b, uint c ) { (void)a; (void)b; (void)c; }
 static inline void populate_sock_filter_policy_fd_snaplv_tile( ulong a, struct sock_filter * b, uint c ) { (void)a; (void)b; (void)c; }
+static inline void populate_sock_filter_policy_fd_rpc_tile( ulong a, struct sock_filter * b, uint c, uint d ) { (void)a; (void)b; (void)c; (void)d; }
+static inline void populate_sock_filter_policy_fd_replay_tile( ulong a, struct sock_filter * b, uint c ) { (void)a; (void)b; (void)c; }
 static inline void populate_sock_filter_policy_fd_shredcap_tile( ulong a, struct sock_filter * b, uint c, uint d, uint e, uint f, uint g ) { (void)a; (void)b; (void)c; (void)d; (void)e; (void)f; (void)g; }
 static inline void populate_sock_filter_policy_fd_resolv_tile( ulong a, struct sock_filter * b, uint c ) { (void)a; (void)b; (void)c; }
 static inline void populate_sock_filter_policy_fd_tower_tile( ulong a, struct sock_filter * b, uint c, uint d, uint e ) { (void)a; (void)b; (void)c; (void)d; (void)e; }
@@ -1106,7 +1114,11 @@ fd_type_pun_const( void const * p ) {
    MFENCE (and vice versa).  The processor itself might still reorder
    around the fence though (that requires platform specific fences). */
 
+#if defined(__aarch64__) || defined(__arm__)
+#define FD_COMPILER_MFENCE() __asm__ __volatile__( "dmb ish" ::: "memory" )
+#else
 #define FD_COMPILER_MFENCE() __asm__ __volatile__( "# FD_COMPILER_MFENCE()@" FD_SRC_LOCATION ::: "memory" )
+#endif
 
 /* FD_SPIN_PAUSE():  Yields the logical core of the calling thread to
    the other logical cores sharing the same underlying physical core for
@@ -1120,6 +1132,8 @@ fd_type_pun_const( void const * p ) {
 
 #if FD_HAS_X86
 #define FD_SPIN_PAUSE() __builtin_ia32_pause()
+#elif defined(__aarch64__) || defined(__arm__)
+#define FD_SPIN_PAUSE() __asm__ __volatile__( "yield" ::: "memory" )
 #else
 #define FD_SPIN_PAUSE() ((void)0)
 #endif

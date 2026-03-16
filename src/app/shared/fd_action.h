@@ -11,6 +11,10 @@ union fdctl_args {
   } run1;
 
   struct {
+    int pipe_fd;
+  } run_agave;
+
+  struct {
     char topo[ 64 ];
     long dt_min;
     long dt_max;

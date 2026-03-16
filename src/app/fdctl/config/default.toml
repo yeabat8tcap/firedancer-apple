@@ -46,7 +46,7 @@ user = ""
 # present it will be replaced with the user running Firedancer, as
 # above, and "{name}" will be replaced with the name of the Firedancer
 # instance.
-scratch_directory = "/home/{user}/.firedancer/{name}"
+scratch_directory = "/Users/{user}/.firedancer/{name}"
 
 # Port range used for various incoming network listeners, in the form
 # `<MIN_PORT>-<MAX_PORT>` inclusive.  The range used includes min, but

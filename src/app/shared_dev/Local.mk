@@ -27,9 +27,15 @@ $(call add-objs,commands/pktgen/fd_pktgen_tile,fddev_shared)
 $(call add-objs,commands/udpecho/fd_udpecho_tile,fddev_shared)
 
 # fddev configure stages
+ifeq ($(FD_HAS_DARWIN),1)
+$(call add-objs,commands/configure/keys,fdctl_shared)
+$(call add-objs,commands/configure/kill,fdctl_shared)
+$(call add-objs,commands/configure/genesis,fdctl_shared)
+else
 $(call add-objs,commands/configure/keys,fddev_shared)
 $(call add-objs,commands/configure/kill,fddev_shared)
 $(call add-objs,commands/configure/genesis,fddev_shared)
+endif
 
 endif
 endif

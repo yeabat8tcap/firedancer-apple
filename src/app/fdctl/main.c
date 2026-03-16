@@ -30,8 +30,8 @@ fd_topo_obj_callbacks_t * CALLBACKS[] = {
   NULL,
 };
 
-# ifndef __APPLE__
 configure_stage_t * STAGES[] = {
+# ifndef __APPLE__
   &fd_cfg_stage_hugetlbfs,
   &fd_cfg_stage_sysctl,
   &fd_cfg_stage_hyperthreads,
@@ -39,9 +39,16 @@ configure_stage_t * STAGES[] = {
   &fd_cfg_stage_ethtool_channels,
   &fd_cfg_stage_ethtool_offloads,
   &fd_cfg_stage_ethtool_loopback,
+  &fd_cfg_stage_snapshots,
+  &fd_cfg_stage_kill,
+# else
+  &fd_cfg_stage_kill,
+  &fd_cfg_stage_snapshots,
+  &fd_cfg_stage_keys,
+  &fd_cfg_stage_genesis,
+# endif
   NULL,
 };
-# endif
 
 extern fd_topo_run_tile_t fd_tile_net;
 extern fd_topo_run_tile_t fd_tile_netlnk;

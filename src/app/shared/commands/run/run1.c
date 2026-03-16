@@ -104,18 +104,18 @@ run1_cmd_fn( args_t *   args,
 #ifdef __linux__
   int flags = config->development.sandbox ? CLONE_NEWPID : 0;
   pid_t clone_pid = clone( tile_main, (uchar *)stack + FD_TILE_PRIVATE_STACK_SZ, flags, &clone_args );
+  if( FD_UNLIKELY( clone_pid<0 ) ) FD_LOG_ERR(( "clone() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
 #else
   (void)stack;
-  pid_t clone_pid = fork();
-  if( !clone_pid ) {
-    /* child */
-    exit( tile_main( &clone_args ) );
-  }
+  pid_t clone_pid = getpid();
 #endif
-  if( FD_UNLIKELY( clone_pid<0 ) ) FD_LOG_ERR(( "clone() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
 
   if( FD_LIKELY( args->run1.pipe_fd!=-1 ) ) {
     ulong pid = (ulong)clone_pid;
     if( FD_UNLIKELY( 8UL!=write( args->run1.pipe_fd, &pid, 8UL ) ) ) FD_LOG_ERR(( "write() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
   }
+
+#ifndef __linux__
+  exit( tile_main( &clone_args ) );
+#endif
 }

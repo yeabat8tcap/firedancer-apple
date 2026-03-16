@@ -14,11 +14,7 @@ FD_STATIC_ASSERT( FD_SHMEM_NUMA_MAX> 0L,                unit_test );
 FD_STATIC_ASSERT( FD_SHMEM_CPU_MAX >=FD_SHMEM_NUMA_MAX, unit_test );
 
 FD_STATIC_ASSERT( FD_SHMEM_UNKNOWN_LG_PAGE_SZ ==-1, unit_test );
-#if defined(__APPLE__) && defined(__aarch64__)
-FD_STATIC_ASSERT( FD_SHMEM_NORMAL_LG_PAGE_SZ  ==14, unit_test );
-#else
-FD_STATIC_ASSERT( FD_SHMEM_NORMAL_LG_PAGE_SZ  ==12, unit_test );
-#endif
+FD_STATIC_ASSERT( FD_SHMEM_NORMAL_LG_PAGE_SZ  == (FD_HAS_ARM ? 14 : 12), unit_test );
 FD_STATIC_ASSERT( FD_SHMEM_HUGE_LG_PAGE_SZ    ==21, unit_test );
 FD_STATIC_ASSERT( FD_SHMEM_GIGANTIC_LG_PAGE_SZ==30, unit_test );
 

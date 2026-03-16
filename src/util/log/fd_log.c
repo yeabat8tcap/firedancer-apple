@@ -37,6 +37,7 @@
 #include <syscall.h>
 #endif
 #include <sys/mman.h>
+#include <pthread.h>
 
 #if FD_HAS_BACKTRACE
 #include <execinfo.h>
@@ -1224,10 +1225,10 @@ fd_log_private_boot( int  *   pargc,
     fd_log_private_sig_trap( SIGILL    );
     fd_log_private_sig_trap( SIGQUIT   );
     fd_log_private_sig_trap( SIGPIPE   );
-    fd_log_private_sig_trap( SIGSEGV   );
+//  fd_log_private_sig_trap( SIGSEGV   );
     fd_log_private_sig_trap( SIGUSR1   );
     fd_log_private_sig_trap( SIGUSR2   );
-    fd_log_private_sig_trap( SIGBUS    );
+//  fd_log_private_sig_trap( SIGBUS    );
     fd_log_private_sig_trap( SIGPOLL   );
     fd_log_private_sig_trap( SIGPROF   );
     fd_log_private_sig_trap( SIGSYS    );
@@ -1345,10 +1346,10 @@ fd_log_private_boot_custom( int *        lock,
     fd_log_private_sig_trap( SIGILL    );
     fd_log_private_sig_trap( SIGQUIT   );
     fd_log_private_sig_trap( SIGPIPE   );
-    fd_log_private_sig_trap( SIGSEGV   );
+//  fd_log_private_sig_trap( SIGSEGV   );
     fd_log_private_sig_trap( SIGUSR1   );
     fd_log_private_sig_trap( SIGUSR2   );
-    fd_log_private_sig_trap( SIGBUS    );
+//  fd_log_private_sig_trap( SIGBUS    );
     fd_log_private_sig_trap( SIGPOLL   );
     fd_log_private_sig_trap( SIGPROF   );
     fd_log_private_sig_trap( SIGSYS    );
@@ -1541,13 +1542,22 @@ fd_log_private_stack_discover( ulong   stack_sz,
 
 #ifdef __APPLE__
 #include <pthread.h>
-  (void)stack_addr; /* Suppress unused variable warning */
-  pthread_t thread = pthread_self();
-  stack1 = (ulong)pthread_get_stackaddr_np( thread );
-  stack0 = stack1 - (ulong)pthread_get_stacksize_np( thread );
-  *_stack0 = stack0;
-  *_stack1 = stack1;
-  return;
+  pthread_t self = pthread_self();
+  void * stack_hi = pthread_get_stackaddr_np( self );
+  size_t stack_sz_actual = pthread_get_stacksize_np( self );
+
+  /* macOS returns the high address for stackaddr. */
+  stack1 = (ulong)stack_hi;
+  stack0 = stack1 - (ulong)stack_sz_actual;
+
+  /* If the discovered stack doesn't contain our stack_addr, something is wrong.
+     Also, if the caller gave us a stack_sz and it doesn't match, we might want to warn,
+     but pthreads might have allocated a different size than requested. */
+  if( FD_UNLIKELY( (stack_addr < stack0) || (stack_addr >= stack1) ) ) {
+    FD_LOG_WARNING(( "unable to find stack size around address 0x%lx (discovered 0x%lx-0x%lx)", stack_addr, stack0, stack1 ));
+    stack0 = 0UL;
+    stack1 = 0UL;
+  }
 #else
   int filefd;
   if( FD_UNLIKELY( ( filefd = open( "/proc/self/maps", O_RDONLY ) ) < 0 ) ) {
@@ -1627,6 +1637,7 @@ fd_log_private_stack_discover( ulong   stack_sz,
     FD_LOG_WARNING(( "unable to find stack size around address 0x%lx", stack_addr ));
 
   close(filefd);
+#endif
 
   *_stack0 = stack0;
   *_stack1 = stack1;

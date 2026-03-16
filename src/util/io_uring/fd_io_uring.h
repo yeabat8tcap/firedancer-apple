@@ -1,9 +1,8 @@
 #ifndef HEADER_fd_src_util_io_uring_fd_io_uring_h
 #define HEADER_fd_src_util_io_uring_fd_io_uring_h
 
-#if defined(__linux__)
-
 #include "fd_io_uring_sys.h"
+#if defined(__linux__)
 #include <stdatomic.h>
 #include <linux/io_uring.h>
 
@@ -80,7 +79,7 @@ struct fd_io_uring {
 };
 typedef struct fd_io_uring fd_io_uring_t;
 
-#include "fd_io_uring_sys.h"
+/* Stubs for non-Linux are provided as inline functions in specialized headers */
 
 #endif /* __linux__ */
 

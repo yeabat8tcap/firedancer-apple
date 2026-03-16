@@ -304,6 +304,7 @@ privileged_init( fd_topo_t *      topo,
 
       ctx->metrics[ i ] = fd_metrics_tile( metrics );
 
+#ifdef __linux__
       char path[ 64UL ];
       FD_TEST( fd_cstr_printf_check( path, sizeof( path ), NULL, "/proc/%lu/task/%lu/stat", pid, tid ) );
       ctx->stat_fds[ i ] = open( path, O_RDONLY );
@@ -322,6 +323,16 @@ privileged_init( fd_topo_t *      topo,
         if( FD_LIKELY( 2UL!=ctx->metrics[ i ][ FD_METRICS_GAUGE_TILE_STATUS_OFF ] ) ) FD_LOG_ERR(( "open sched failed (%i-%s)", errno, strerror( errno ) ));
         ctx->stat_fds[ i ] = -1;
       }
+#else
+      (void)pid; (void)tid;
+      static int warned = 0;
+      if( !warned ) {
+        FD_LOG_WARNING(( "CPU diagnostics via /proc are not available on this platform" ));
+        warned = 1;
+      }
+      ctx->stat_fds[ i ] = -1;
+      ctx->sched_fds[ i ] = -1;
+#endif
       break;
     }
   }

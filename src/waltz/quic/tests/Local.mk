@@ -9,7 +9,9 @@ $(call make-unit-test,test_quic_proto,      test_quic_proto,      fd_quic fd_uti
 $(call make-unit-test,test_quic_hs,         test_quic_hs,         $(QUIC_TEST_LIBS))
 $(call make-unit-test,test_quic_streams,    test_quic_streams,    $(QUIC_TEST_LIBS))
 $(call make-unit-test,test_quic_conn,       test_quic_conn,       $(QUIC_TEST_LIBS))
+ifdef FD_HAS_LINUX
 $(call make-unit-test,test_quic_drops,      test_quic_drops,      $(QUIC_TEST_LIBS) fd_fibre)
+endif
 $(call make-unit-test,test_quic_bw,         test_quic_bw,         $(QUIC_TEST_LIBS))
 $(call make-unit-test,test_quic_layout,     test_quic_layout,     fd_util)
 $(call make-unit-test,test_quic_conformance,test_quic_conformance,$(QUIC_TEST_LIBS) fd_util)
@@ -58,6 +60,8 @@ $(call make-fuzz-test,fuzz_quic_wire,fuzz_quic_wire,$(QUIC_TEST_LIBS))
 $(call make-fuzz-test,fuzz_quic_actor,fuzz_quic_actor,$(QUIC_TEST_LIBS))
 endif
 
+ifdef FD_HAS_LINUX
 $(call make-unit-test,test_quic_key_phase,test_quic_key_phase,$(QUIC_TEST_LIBS) fd_fibre)
 $(call run-unit-test,test_quic_key_phase)
+endif
 endif

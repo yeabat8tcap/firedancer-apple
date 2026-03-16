@@ -233,25 +233,6 @@ check_file( const char * path,
   return check_path( path, uid, gid, mode, 0 );
 }
 
-configure_stage_t * STAGES[] = {
-# ifndef __APPLE__
-  &fd_cfg_stage_hugetlbfs,
-  &fd_cfg_stage_sysctl,
-  &fd_cfg_stage_hyperthreads,
-  &fd_cfg_stage_bonding,
-  &fd_cfg_stage_ethtool_channels,
-  &fd_cfg_stage_ethtool_offloads,
-  &fd_cfg_stage_ethtool_loopback,
-  &fd_cfg_stage_snapshots,
-  &fd_cfg_stage_kill,
-# else
-  &fd_cfg_stage_kill,
-  &fd_cfg_stage_snapshots,
-  &fd_cfg_stage_keys,
-  &fd_cfg_stage_genesis,
-# endif
-  NULL
-};
 
 action_t fd_action_configure = {
   .name           = "configure",

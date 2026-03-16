@@ -6,6 +6,7 @@
 #include "../../util/log/fd_log.h"
 #include "fd_libc_zstd.h"
 
+#ifdef __linux__
 struct fd_zstd_rstream {
   FILE *         file;
   ZSTD_DStream * dstream;
@@ -263,3 +264,22 @@ fd_zstd_wstream_open( FILE * file,
   }
   return ret;
 }
+#else
+FILE *
+fd_zstd_rstream_open( FILE *         file,
+                      ZSTD_DStream * dstream,
+                      ulong          buf_sz ) {
+  (void)file; (void)dstream; (void)buf_sz;
+  FD_LOG_WARNING(("fd_zstd_rstream_open not supported on macOS"));
+  return NULL;
+}
+
+FILE *
+fd_zstd_wstream_open( FILE * file,
+                      int    level,
+                      ulong  buf_sz ) {
+  (void)file; (void)level; (void)buf_sz;
+  FD_LOG_WARNING(("fd_zstd_wstream_open not supported on macOS"));
+  return NULL;
+}
+#endif

@@ -295,11 +295,11 @@ fd_http_server_t *
 fd_http_server_listen( fd_http_server_t * http,
                        uint               address,
                        ushort             port ) {
-#if defined(__APPLE__)
+#ifdef __APPLE__
   int sockfd = socket( AF_INET, SOCK_STREAM, 0 );
   if( FD_UNLIKELY( -1==sockfd ) ) FD_LOG_ERR(( "socket failed (%i-%s)", errno, strerror( errno ) ));
-  fcntl( sockfd, F_SETFD, FD_CLOEXEC );
-  fcntl( sockfd, F_SETFL, fcntl( sockfd, F_GETFL, 0 ) | O_NONBLOCK );
+  if( FD_UNLIKELY( -1==fcntl( sockfd, F_SETFL, fcntl( sockfd, F_GETFL, 0 ) | O_NONBLOCK ) ) )
+    FD_LOG_ERR(( "fcntl(O_NONBLOCK) failed (%i-%s)", errno, fd_io_strerror( errno ) ));
 #else
   int sockfd = socket( AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0 );
   if( FD_UNLIKELY( -1==sockfd ) ) FD_LOG_ERR(( "socket failed (%i-%s)", errno, strerror( errno ) ));
@@ -389,9 +389,6 @@ is_expected_network_error( int err ) {
     err==EPROTO ||
     err==ENOPROTOOPT ||
     err==EHOSTDOWN ||
-#ifndef ENONET
-#define ENONET 64 /* Standard Linux value, not on macOS */
-#endif
 #ifndef ENONET
 #define ENONET 64 /* Standard Linux value, not on macOS */
 #endif

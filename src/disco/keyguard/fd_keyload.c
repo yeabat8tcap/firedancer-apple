@@ -103,20 +103,20 @@ void FD_FN_SENSITIVE
 fd_keyload_unload( uchar const * key,
                    int           public_key_only ) {
   void * key_page = public_key_only ? (uchar *)key-32UL : (uchar *)key;
-  ulong sz = (2UL*1UL+2UL)*4096UL;
+  ulong sz = (2UL*1UL+2UL)*FD_SHMEM_NORMAL_PAGE_SZ;
 
-  if( FD_UNLIKELY( mprotect( key_page, 4096UL, PROT_READ | PROT_WRITE ) ) )
+  if( FD_UNLIKELY( mprotect( key_page, FD_SHMEM_NORMAL_PAGE_SZ, PROT_READ | PROT_WRITE ) ) )
     FD_LOG_ERR(( "mprotect failed (%i-%s)", errno, fd_io_strerror( errno ) ));
-  fd_memzero_explicit( key_page, 4096UL );
+  fd_memzero_explicit( key_page, FD_SHMEM_NORMAL_PAGE_SZ );
 
-  if( FD_UNLIKELY( -1==munmap( (uchar*)key_page - 2UL*4096UL, sz ) ) )
+  if( FD_UNLIKELY( -1==munmap( (uchar*)key_page - 2UL*FD_SHMEM_NORMAL_PAGE_SZ, sz ) ) )
     FD_LOG_ERR(( "munmap failed (%i-%s)", errno, fd_io_strerror( errno ) ));
 }
 
 void * FD_FN_SENSITIVE
 fd_keyload_alloc_protected_pages( ulong page_cnt,
                                   ulong guard_page_cnt ) {
-#define PAGE_SZ (4096UL)
+#define PAGE_SZ FD_SHMEM_NORMAL_PAGE_SZ
   void * pages = mmap( NULL, (2UL*guard_page_cnt+page_cnt)*PAGE_SZ, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0UL );
   if( FD_UNLIKELY( pages==MAP_FAILED ) ) FD_LOG_ERR(( "mmap failed (%i-%s)", errno, fd_io_strerror( errno ) ));
 
