@@ -48,10 +48,10 @@ $(call add-objs,commands/monitor_gossip/monitor_gossip commands/monitor_gossip/g
 $(call make-lib,firedancer_version)
 $(call add-objs,version,firedancer_version)
 
-ifdef FD_HAS_SSE
+ifneq (,$(filter 1,$(FD_HAS_SSE) $(FD_HAS_NEON)))
 # ifdef FD_HAS_BLST -- will be a required dependency soon
 ifdef FD_HAS_S2NBIGNUM
-$(call make-bin,firedancer,main,fd_firedancer fdctl_shared fdctl_platform fd_discof fd_disco fd_choreo fd_flamenco fd_vinyl fd_funk fd_quic fd_tls fd_reedsol fd_waltz fd_tango fd_ballet fd_util firedancer_version,$(SECP256K1_LIBS) $(OPENSSL_LIBS))
+$(call make-bin,firedancer,main,fd_firedancer fdctl_shared fdctl_platform fddev_shared fd_discof fd_disco fd_choreo fd_flamenco fd_vinyl fd_funk fd_quic fd_tls fd_reedsol fd_waltz fd_tango fd_ballet fd_util firedancer_version,$(SECP256K1_LIBS) $(OPENSSL_LIBS))
 endif
 # endif
 endif

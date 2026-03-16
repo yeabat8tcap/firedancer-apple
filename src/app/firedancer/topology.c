@@ -43,10 +43,19 @@
 
 extern fd_topo_obj_callbacks_t * CALLBACKS[];
 
+static fd_topo_tile_t *
+find_tile_obj( fd_topo_t * topo, char const * name, ulong kind_id ) {
+  ulong tid = fd_topo_find_tile( topo, name, kind_id );
+  if( FD_UNLIKELY( tid==ULONG_MAX ) ) FD_LOG_ERR(( "Tile not found: %s:%lu", name, kind_id ));
+  return &topo->tiles[ tid ];
+}
+
 static void
-parse_ip_port( const char * name, const char * ip_port, fd_topo_ip_port_t *parsed_ip_port) {
+parse_ip_port( char const *        name,
+               char const *        val,
+               fd_topo_ip_port_t * parsed_ip_port ) {
   char buf[ sizeof( "255.255.255.255:65536" ) ];
-  memcpy( buf, ip_port, sizeof( buf ) );
+  memcpy( buf, val, sizeof( buf ) );
   char *ip_end = strchr( buf, ':' );
   if( FD_UNLIKELY( !ip_end ) )
     FD_LOG_ERR(( "[%s] must in the form ip:port", name ));
@@ -80,8 +89,7 @@ setup_topo_banks( fd_topo_t *  topo,
 fd_topo_obj_t *
 setup_topo_banks_locks( fd_topo_t *  topo,
                         char const * wksp_name ) {
-  fd_topo_obj_t * obj = fd_topob_obj( topo, "banks_locks", wksp_name );
-  return obj;
+  return fd_topob_obj( topo, "banks_locks", wksp_name );
 }
 
 static fd_topo_obj_t *
@@ -407,7 +415,10 @@ fd_topo_initialize( config_t * config ) {
   /*             topo, name */
   fd_topob_wksp( topo, "metric" );
   fd_topob_wksp( topo, "diag"   );
+#if FD_HAS_BZIP2
   fd_topob_wksp( topo, "genesi" );
+#endif
+
   fd_topob_wksp( topo, "ipecho" );
   fd_topob_wksp( topo, "gossvf" );
   fd_topob_wksp( topo, "gossip" );
@@ -714,7 +725,10 @@ fd_topo_initialize( config_t * config ) {
     }
   }
 
+#if FD_HAS_BZIP2
   /**/                 fd_topob_tile( topo, "genesi",  "genesi",  "metric_in",  tile_to_cpu[ topo->tile_cnt ], 0,        0,                 0 )->allow_shutdown = 1;
+#endif
+
   /**/                 fd_topob_tile( topo, "ipecho",  "ipecho",  "metric_in",  tile_to_cpu[ topo->tile_cnt ], 0,        0,                 0 );
   FOR(gossvf_tile_cnt) fd_topob_tile( topo, "gossvf",  "gossvf",  "metric_in",  tile_to_cpu[ topo->tile_cnt ], 0,        1,                 0 );
   /**/                 fd_topob_tile( topo, "gossip",  "gossip",  "metric_in",  tile_to_cpu[ topo->tile_cnt ], 0,        1,                 0 );
@@ -760,7 +774,10 @@ fd_topo_initialize( config_t * config ) {
     fd_topob_tile_uses( topo, accdb_tile, accdb_map_obj,  FD_SHMEM_JOIN_MODE_READ_WRITE );
     fd_topob_tile_uses( topo, accdb_tile, accdb_pool_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
 
+#if FD_HAS_BZIP2
     fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "genesi", 0UL ) ], accdb_data, FD_SHMEM_JOIN_MODE_READ_WRITE );
+#endif
+
 
     fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "replay", 0UL ) ], accdb_data, FD_SHMEM_JOIN_MODE_READ_WRITE );
     for( ulong i=0UL; i<execrp_tile_cnt; i++ ) {
@@ -819,7 +836,10 @@ fd_topo_initialize( config_t * config ) {
   /**/                fd_topos_tile_in_net( topo,                          "metric_in", "txsend_net",    0UL,          FD_TOPOB_UNRELIABLE, FD_TOPOB_POLLED ); /* No reliable consumers of networking fragments, may be dropped or overrun */
   FOR(quic_tile_cnt)  fd_topos_tile_in_net( topo,                          "metric_in", "quic_net",      i,            FD_TOPOB_UNRELIABLE, FD_TOPOB_POLLED ); /* No reliable consumers of networking fragments, may be dropped or overrun */
 
+#if FD_HAS_BZIP2
   /**/                 fd_topob_tile_out(   topo, "genesi", 0UL,                        "genesi_out",    0UL                                                );
+#endif
+
   /**/                 fd_topob_tile_in (   topo, "ipecho", 0UL,           "metric_in", "genesi_out",    0UL,          FD_TOPOB_RELIABLE,   FD_TOPOB_POLLED );
   /**/                 fd_topob_tile_out(   topo, "ipecho", 0UL,                        "ipecho_out",    0UL                                                );
 
@@ -1158,6 +1178,7 @@ fd_topo_initialize( config_t * config ) {
   }
 
   if( FD_LIKELY( !is_auto_affinity ) ) {
+    FD_LOG_NOTICE(( "Topology finalize step 1: leader_enabled=%d", leader_enabled ));
     if( FD_UNLIKELY( affinity_tile_cnt<topo->tile_cnt ) )
       FD_LOG_ERR(( "The topology you are using has %lu tiles, but the CPU affinity specified in the config tile as [layout.affinity] only provides for %lu cores. "
                    "You should either increase the number of cores dedicated to Firedancer in the affinity string, or decrease the number of cores needed by reducing "
@@ -1194,17 +1215,18 @@ fd_topo_initialize( config_t * config ) {
      tiles to indicate when the execle/poh tiles are done processing a
      microblock.  Pack uses this to determine when to "unlock" accounts
      that it marked as locked because they were being used. */
-
+  FD_LOG_NOTICE(( "Topology finalize step 2: execle_busy, execle_tile_cnt=%lu", execle_tile_cnt ));
   for( ulong i=0UL; i<execle_tile_cnt; i++ ) {
     fd_topo_obj_t * busy_obj = fd_topob_obj( topo, "fseq", "execle_busy" );
 
-    fd_topo_tile_t * pack_tile = &topo->tiles[ fd_topo_find_tile( topo, "pack", 0UL ) ];
-    fd_topo_tile_t * execle_tile = &topo->tiles[ fd_topo_find_tile( topo, "execle", i ) ];
+    fd_topo_tile_t * pack_tile = find_tile_obj( topo, "pack", 0UL );
+    fd_topo_tile_t * execle_tile = find_tile_obj( topo, "execle", i );
     fd_topob_tile_uses( topo, pack_tile, busy_obj, FD_SHMEM_JOIN_MODE_READ_ONLY );
     fd_topob_tile_uses( topo, execle_tile, busy_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
     FD_TEST( fd_pod_insertf_ulong( topo->props, busy_obj->id, "execle_busy.%lu", i ) );
   }
 
+  FD_LOG_NOTICE(( "Topology finalize step 3: rnonce" ));
   /* Repair and shred share a secret they use to generate the nonces.
      It's not super security sensitive, but for good hygiene, we make it
      an object. */
@@ -1219,6 +1241,7 @@ fd_topo_initialize( config_t * config ) {
     FD_TEST( fd_pod_insertf_ulong( topo->props, rnonce_ss_obj->id, "rnonce_ss" ) );
   }
 
+  FD_LOG_NOTICE(( "Topology finalize step 4: funk" ));
   setup_topo_funk( topo,
       config->firedancer.accounts.max_accounts,
       config->firedancer.runtime.max_live_slots + config->firedancer.accounts.write_delay_slots,
@@ -1230,32 +1253,49 @@ fd_topo_initialize( config_t * config ) {
   fd_topo_obj_t * funk_obj       = &topo->objs[ funk_obj_id       ];
   fd_topo_obj_t * funk_locks_obj = &topo->objs[ funk_locks_obj_id ];
 
-  /**/                 fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "replay", 0UL ) ], funk_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
-  /**/                 fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "tower", 0UL  ) ], funk_obj, FD_SHMEM_JOIN_MODE_READ_ONLY  );
-  FOR(execrp_tile_cnt) fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "execrp", i   ) ], funk_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
-  FOR(execle_tile_cnt) fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "execle", i   ) ], funk_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
-  FOR(resolv_tile_cnt) fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "resolv", i   ) ], funk_obj, FD_SHMEM_JOIN_MODE_READ_ONLY  );
+  /**/                 fd_topob_tile_uses( topo, find_tile_obj( topo, "replay", 0UL ), funk_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
+  /**/                 fd_topob_tile_uses( topo, find_tile_obj( topo, "tower", 0UL  ), funk_obj, FD_SHMEM_JOIN_MODE_READ_ONLY  );
+  FOR(execrp_tile_cnt) fd_topob_tile_uses( topo, find_tile_obj( topo, "execrp", i   ), funk_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
+  FOR(execle_tile_cnt) fd_topob_tile_uses( topo, find_tile_obj( topo, "execle", i   ), funk_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
+  FOR(resolv_tile_cnt) fd_topob_tile_uses( topo, find_tile_obj( topo, "resolv", i   ), funk_obj, FD_SHMEM_JOIN_MODE_READ_ONLY  );
 
-  /**/                 fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "replay", 0UL ) ], funk_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
-  /**/                 fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "tower", 0UL  ) ], funk_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
-  FOR(execrp_tile_cnt) fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "execrp", i   ) ], funk_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
-  FOR(execle_tile_cnt) fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "execle", i   ) ], funk_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
-  FOR(resolv_tile_cnt) fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "resolv", i   ) ], funk_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
+  /**/                 fd_topob_tile_uses( topo, find_tile_obj( topo, "replay", 0UL ), funk_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
+  /**/                 fd_topob_tile_uses( topo, find_tile_obj( topo, "tower", 0UL  ), funk_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
+  FOR(execrp_tile_cnt) fd_topob_tile_uses( topo, find_tile_obj( topo, "execrp", i   ), funk_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
+    FOR(execle_tile_cnt) fd_topob_tile_uses( topo, find_tile_obj( topo, "execle", i   ), funk_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
+  FOR(resolv_tile_cnt) fd_topob_tile_uses( topo, find_tile_obj( topo, "resolv", i   ), funk_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
 
+  FD_LOG_NOTICE(( "Topology finalize step 5: banks, counts: wksp=%lu, tile=%lu, obj=%lu", topo->wksp_cnt, topo->tile_cnt, topo->obj_cnt ));
   fd_topo_obj_t * banks_obj = setup_topo_banks( topo, "banks", config->firedancer.runtime.max_live_slots, config->firedancer.runtime.max_fork_width, config->development.bench.larger_max_cost_per_block );
-  /**/                 fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "replay", 0UL ) ], banks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
-  /**/                 fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "tower",  0UL ) ], banks_obj, FD_SHMEM_JOIN_MODE_READ_ONLY  );
-  FOR(execrp_tile_cnt) fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "execrp", i   ) ], banks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
-  FOR(execle_tile_cnt) fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "execle", i   ) ], banks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
-  FOR(resolv_tile_cnt) fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "resolv", i   ) ], banks_obj, FD_SHMEM_JOIN_MODE_READ_ONLY  );
+  FD_LOG_NOTICE(( "Topology finalize: banks_obj setup complete" ));
+  /**/                 fd_topob_tile_uses( topo, find_tile_obj( topo, "replay", 0UL ), banks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
+  FD_LOG_NOTICE(( "Topology finalize: replay uses banks" ));
+  /**/                 fd_topob_tile_uses( topo, find_tile_obj( topo, "tower",  0UL ), banks_obj, FD_SHMEM_JOIN_MODE_READ_ONLY  );
+  FD_LOG_NOTICE(( "Topology finalize: tower uses banks" ));
+  FOR(execrp_tile_cnt) {
+    fd_topob_tile_uses( topo, find_tile_obj( topo, "execrp", i   ), banks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
+    FD_LOG_NOTICE(( "Topology finalize: execrp.%lu uses banks", i ));
+  }
+  FOR(execle_tile_cnt) {
+    fd_topob_tile_uses( topo, find_tile_obj( topo, "execle", i   ), banks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
+    FD_LOG_NOTICE(( "Topology finalize: execle.%lu uses banks", i ));
+  }
+  FOR(resolv_tile_cnt) {
+    fd_topob_tile_uses( topo, find_tile_obj( topo, "resolv", i   ), banks_obj, FD_SHMEM_JOIN_MODE_READ_ONLY  );
+    FD_LOG_NOTICE(( "Topology finalize: resolv.%lu uses banks", i ));
+  }
   FD_TEST( fd_pod_insertf_ulong( topo->props, banks_obj->id, "banks" ) );
 
+  FD_LOG_NOTICE(( "Topology finalize: setup_topo_banks_locks, listing workspaces" ));
+  for( ulong i=0UL; i<topo->wksp_cnt; i++ ) {
+    FD_LOG_NOTICE(( "  [%lu] %s", i, topo->workspaces[ i ].name ));
+  }
   fd_topo_obj_t * banks_locks_obj = setup_topo_banks_locks( topo, "banks_locks" );
-  /**/                 fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "replay", 0UL ) ], banks_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
-  /**/                 fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "tower",  0UL ) ], banks_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
-  FOR(execrp_tile_cnt) fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "execrp", i   ) ], banks_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
-  FOR(execle_tile_cnt) fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "execle", i   ) ], banks_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
-  FOR(resolv_tile_cnt) fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "resolv", i   ) ], banks_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
+  /**/                 fd_topob_tile_uses( topo, find_tile_obj( topo, "replay", 0UL ), banks_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
+  /**/                 fd_topob_tile_uses( topo, find_tile_obj( topo, "tower",  0UL ), banks_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
+  FOR(execrp_tile_cnt) fd_topob_tile_uses( topo, find_tile_obj( topo, "execrp", i   ), banks_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
+  FOR(execle_tile_cnt) fd_topob_tile_uses( topo, find_tile_obj( topo, "execle", i   ), banks_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
+  FOR(resolv_tile_cnt) fd_topob_tile_uses( topo, find_tile_obj( topo, "resolv", i   ), banks_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
   FD_TEST( fd_pod_insertf_ulong( topo->props, banks_locks_obj->id, "banks_locks" ) );
 
   if( FD_UNLIKELY( config->tiles.bundle.enabled ) ) {
@@ -1378,8 +1418,11 @@ fd_topo_initialize( config_t * config ) {
   FOR(execrp_tile_cnt) fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "execrp", i ) ], txncache_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
   FD_TEST( fd_pod_insertf_ulong( topo->props, txncache_obj->id, "txncache" ) );
 
+#if FD_HAS_BZIP2
   fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "genesi", 0UL ) ], funk_obj,       FD_SHMEM_JOIN_MODE_READ_WRITE );
   fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "genesi", 0UL ) ], funk_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
+#endif
+
   if( FD_LIKELY( snapshots_enabled ) ) {
     fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "snapin", 0UL ) ], funk_obj,       FD_SHMEM_JOIN_MODE_READ_WRITE );
     fd_topob_tile_uses( topo, &topo->tiles[ fd_topo_find_tile( topo, "snapin", 0UL ) ], funk_locks_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
@@ -1394,7 +1437,10 @@ fd_topo_initialize( config_t * config ) {
   fd_pod_insert_int( topo->props, "sandbox", config->development.sandbox ? 1 : 0 );
 
   if( vinyl_enabled ) {
+#if FD_HAS_BZIP2
     fd_topob_vinyl_rq( topo, "genesi", 0UL, "accdb_genesi", "genesi", 4UL, 1024UL, 1024UL );
+#endif
+
     fd_topob_vinyl_rq( topo, "replay", 0UL, "accdb_replay", "replay", 4UL, 1024UL, 1024UL );
     for( ulong i=0UL; i<execrp_tile_cnt; i++ ) {
       fd_topob_vinyl_rq( topo, "execrp", i, "accdb_execrp", "execrp", 4UL, 1024UL, 1024UL );
@@ -1416,7 +1462,7 @@ fd_topo_initialize( config_t * config ) {
 
   FOR(net_tile_cnt) fd_topos_net_tile_finish( topo, i );
   fd_topob_finish( topo, CALLBACKS );
-  config->topo = *topo;
+  /* config->topo = *topo; - this is a self-assignment since topo=&config->topo and it can trigger large memcpy issues */
 }
 
 void

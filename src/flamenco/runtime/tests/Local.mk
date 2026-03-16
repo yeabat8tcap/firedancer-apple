@@ -22,10 +22,12 @@ $(call add-hdrs,flatbuffers/generated/elf_builder.h,flatbuffers/generated/elf_re
 
 ifdef FD_HAS_HOSTED
 ifdef FD_HAS_INT128
+ifdef FD_HAS_LINUX
 SOL_COMPAT_FLAGS:=-Wl,--undefined=fd_types_vt_by_name -Wl,--version-script=src/flamenco/runtime/tests/libfd_exec_sol_compat.map
 $(call make-unit-test,test_sol_compat,test_sol_compat,fd_flamenco_test fd_flamenco fd_tango fd_funk fd_ballet fd_util fd_disco,$(SECP256K1_LIBS) $(FLATCC_LIBS))
 $(call make-shared,libfd_exec_sol_compat.so,fd_sol_compat,fd_flamenco_test fd_flamenco fd_funk fd_ballet fd_util fd_disco,$(SECP256K1_LIBS) $(FLATCC_LIBS) $(SOL_COMPAT_FLAGS))
 $(call make-unit-test,test_sol_compat_so,test_sol_compat_so,fd_util)
+endif
 endif
 endif
 

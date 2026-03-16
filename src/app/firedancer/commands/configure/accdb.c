@@ -53,7 +53,18 @@ init( config_t const * config ) {
                    config->paths.accounts, (need>>30)+1, avail>>30 ));
     }
     FD_LOG_NOTICE(( "RUN: `fallocate -l %lu %s`", bstream_sz, config->paths.accounts ));
+#ifdef __APPLE__
+    fstore_t store = {F_ALLOCATEALL, F_PEOFPOSMODE, 0, (off_t)bstream_sz, 0};
+    int err = fcntl( vinyl_fd, F_PREALLOCATE, &store );
+    if( FD_UNLIKELY( err==-1 ) ) err = errno;
+    else {
+      err = ftruncate( vinyl_fd, (off_t)bstream_sz );
+      if( FD_UNLIKELY( err==-1 ) ) err = errno;
+      else err = 0;
+    }
+#else
     int err = posix_fallocate( vinyl_fd, 0L, (long)bstream_sz );
+#endif
     if( FD_UNLIKELY( err ) ) {
       FD_LOG_ERR(( "posix_fallocate(`%s`,%lu MiB) failed (%i-%s)", config->paths.accounts, bstream_sz>>20, err, fd_io_strerror( err ) ));
     }

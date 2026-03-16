@@ -60,7 +60,8 @@ fd_topob_obj( fd_topo_t *  topo,
   ulong wksp_id = fd_topo_find_wksp( topo, wksp_name );
   if( FD_UNLIKELY( wksp_id==ULONG_MAX ) ) FD_LOG_ERR(( "workspace not found: %s", wksp_name ));
 
-  fd_topo_obj_t * obj = &topo->objs[ topo->obj_cnt ];
+  fd_topo_obj_t  * obj  = &topo->objs[ topo->obj_cnt ];
+
   memset( obj, 0, sizeof(fd_topo_obj_t) );
   strncpy( obj->name, obj_name, sizeof(obj->name) );
   obj->id        = topo->obj_cnt;

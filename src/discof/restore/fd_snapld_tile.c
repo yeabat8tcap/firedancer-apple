@@ -142,7 +142,11 @@ privileged_init( fd_topo_t *      topo,
   /* Create a temporary file descriptor for our socket file descriptor.
      It is closed later in unprivileged init so that the sandbox sees
      an existent file descriptor. */
+#ifdef __APPLE__
+  ctx->sockfd = open( "/dev/null", O_RDONLY );
+#else
   ctx->sockfd = memfd_create( "snapld.sockfd", 0 );
+#endif
   if( FD_UNLIKELY( -1==ctx->sockfd ) ) FD_LOG_ERR(( "memfd_create() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
 }
 

@@ -1,0 +1,57 @@
+name = "apple-validator"
+user = "8tcapital"
+
+[paths]
+    base = "/Users/8tcapital/firedancer/apple-validator"
+    identity_key = "/Users/8tcapital/apex-liquidator/firedancer-apple/identity.json"
+    vote_account = "/Users/8tcapital/apex-liquidator/firedancer-apple/vote.json"
+
+[log]
+    path = "/Users/8tcapital/firedancer/logs/validator.log"
+    level_stderr = "NOTICE"
+
+[gossip]
+    entrypoints = [
+        "entrypoint.mainnet-beta.solana.com:8001",
+        "entrypoint2.mainnet-beta.solana.com:8001",
+        "entrypoint3.mainnet-beta.solana.com:8001",
+        "entrypoint4.mainnet-beta.solana.com:8001",
+        "entrypoint5.mainnet-beta.solana.com:8001",
+    ]
+
+[consensus]
+    expected_genesis_hash = "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d"
+
+[accounts]
+    # Adjusted for 64GB Firedancer allocation, leaving ~64GB for the host OS + Jupiter API + Keeper
+    file_size_gib = 64
+    max_accounts = 150_000_000
+    cache_size_gib = 2
+    in_memory_only = false
+    io_provider = "portable"
+
+[hugetlbfs]
+    mount_path = "/Users/8tcapital/firedancer/workspaces"
+
+[layout]
+    # Virtual over-subscription for macOS
+    affinity = "f128"
+    net_tile_count = 1
+    quic_tile_count = 1
+    resolv_tile_count = 1
+    verify_tile_count = 4
+    gossvf_tile_count = 1
+    execle_tile_count = 1
+    execrp_tile_count = 4
+    shred_tile_count = 1
+    sign_tile_count = 2
+    snapshot_hash_tile_count = 2
+    snapwr_tile_count = 1
+
+[snapshots]
+    incremental_snapshots = true
+    [snapshots.sources]
+        servers = [ "https://api.mainnet-beta.solana.com" ]
+[net]
+    provider = "socket"
+    interface = "lo0" # Use loopback on macOS for now

@@ -65,17 +65,7 @@ fd_topo_obj_callbacks_t * CALLBACKS[] = {
 
 extern configure_stage_t fd_cfg_stage_accdb;
 
-configure_stage_t * STAGES[] = {
-  &fd_cfg_stage_hugetlbfs,
-  &fd_cfg_stage_sysctl,
-  &fd_cfg_stage_bonding,
-  &fd_cfg_stage_ethtool_channels,
-  &fd_cfg_stage_ethtool_offloads,
-  &fd_cfg_stage_ethtool_loopback,
-  &fd_cfg_stage_snapshots,
-  &fd_cfg_stage_accdb,
-  NULL,
-};
+extern configure_stage_t * STAGES[];
 
 
 extern fd_topo_run_tile_t fd_tile_net;

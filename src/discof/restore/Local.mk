@@ -1,6 +1,6 @@
 ifdef FD_HAS_HOSTED
 ifdef FD_HAS_ALLOCA
-ifdef FD_HAS_SSE
+ifneq (,$(filter 1,$(FD_HAS_SSE) $(FD_HAS_NEON)))
 $(call add-hdrs,fd_snapct_tile.h)
 $(call add-objs,fd_snapct_tile,fd_discof)
 $(call add-objs,fd_snapld_tile,fd_discof)

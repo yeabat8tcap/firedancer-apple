@@ -1,6 +1,10 @@
 $(call make-lib,fd_util)
 $(call add-hdrs,fd_util_base.h fd_util.h)
+ifdef FD_HAS_DARWIN
+$(call add-objs,fd_hash fd_util fd_darwin_stubs,fd_util)
+else
 $(call add-objs,fd_hash fd_util,fd_util)
+endif
 $(call make-unit-test,test_util,test_util,fd_util)
 $(call run-unit-test,test_util,)
 

@@ -1,3 +1,6 @@
+#ifdef __APPLE__
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
 #include "fd_fibre.h"
 
 #include <stdio.h>

@@ -50,7 +50,6 @@ fd_topob_vinyl_rq( fd_topo_t *  topo,
   /* Associate req_pool and cq with rq */
   FD_TEST( fd_pod_insertf_ulong( topo->props, req_pool_obj->id, "obj.%lu.req_pool_obj_id", rq_obj->id ) );
   FD_TEST( fd_pod_insertf_ulong( topo->props, cq_obj->id,       "obj.%lu.cq_obj_id",       rq_obj->id ) );
-
   fd_topob_tile_uses( topo, accdb_tile,  req_pool_obj, FD_SHMEM_JOIN_MODE_READ_WRITE );
   fd_topob_tile_uses( topo, accdb_tile,  rq_obj,       FD_SHMEM_JOIN_MODE_READ_ONLY  );
   fd_topob_tile_uses( topo, accdb_tile,  cq_obj,       FD_SHMEM_JOIN_MODE_READ_WRITE );

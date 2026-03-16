@@ -143,6 +143,6 @@ action_t fd_action_keys = {
   .name        = "keys",
   .args        = keys_cmd_args,
   .fn          = keys_cmd_fn,
-  .perm        = NULL,
+  .no_topo     = 1,
   .description = "Generate new keypairs for use with the validator or print a public key",
 };

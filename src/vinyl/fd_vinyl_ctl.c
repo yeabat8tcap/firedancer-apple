@@ -10,6 +10,13 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
+#ifndef O_DIRECT
+#define O_DIRECT 0
+#endif
+#ifndef O_NOATIME
+#define O_NOATIME 0
+#endif
+
 FD_IMPORT_CSTR( fd_vinyl_ctl_help, "src/vinyl/fd_vinyl_ctl_help" );
 
 static int

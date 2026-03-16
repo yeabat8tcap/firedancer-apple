@@ -80,11 +80,7 @@ struct fd_io_uring {
 };
 typedef struct fd_io_uring fd_io_uring_t;
 
-/* Stubs for non-Linux */
-#define fd_io_uring_setup(a,b) (-1)
-#define fd_io_uring_register_files(a,b,c) (-1)
-#define fd_io_uring_register_restrictions(a,b,c) (-1)
-#define fd_io_uring_enable_rings(a) (-1)
+#include "fd_io_uring_sys.h"
 
 #endif /* __linux__ */
 

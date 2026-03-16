@@ -1,4 +1,4 @@
-#include <linux/limits.h>
+#include <limits.h>
 #define _GNU_SOURCE
 #include "fd_genesi_tile.h"
 #include "fd_genesis_client.h"
@@ -22,7 +22,9 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 #include <netinet/in.h>
+#ifdef __linux__
 #include <linux/fs.h>
+#endif
 #if FD_HAS_BZIP2
 #include <bzlib.h>
 #endif
@@ -335,7 +337,11 @@ after_credit( fd_genesi_tile_t *  ctx,
     char basename_partial[ PATH_MAX ];
     FD_TEST( fd_cstr_printf_check( basename_partial, PATH_MAX, NULL, "%s.partial", basename ) );
 
+#ifdef __linux__
     int err = renameat2( ctx->out_dir_fd, basename_partial, ctx->out_dir_fd, basename, RENAME_NOREPLACE );
+#else
+    int err = renameat( ctx->out_dir_fd, basename_partial, ctx->out_dir_fd, basename );
+#endif
     if( FD_UNLIKELY( -1==err ) ) FD_LOG_ERR(( "renameat2() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
 
     FD_LOG_NOTICE(( "retrieved genesis `%s` from peer at http://" FD_IP4_ADDR_FMT ":%hu/genesis.tar.bz2",
@@ -439,16 +445,26 @@ privileged_init( fd_topo_t *      topo,
             are still done as root. */
           gid_t gid = getgid();
           uid_t uid = getuid();
+#ifdef __linux__
           if( FD_LIKELY( !gid && -1==syscall( __NR_setresgid, -1, tile->genesi.target_gid, -1 ) ) ) FD_LOG_ERR(( "setresgid() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
           if( FD_LIKELY( !uid && -1==syscall( __NR_setresuid, -1, tile->genesi.target_uid, -1 ) ) ) FD_LOG_ERR(( "setresuid() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+#else
+          if( FD_LIKELY( !gid && setegid( tile->genesi.target_gid ) ) ) FD_LOG_ERR(( "setegid() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+          if( FD_LIKELY( !uid && seteuid( tile->genesi.target_uid ) ) ) FD_LOG_ERR(( "seteuid() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+#endif
 
           char partialname[ PATH_MAX ];
           FD_TEST( fd_cstr_printf_check( partialname, PATH_MAX, NULL, "%s.partial", tile->genesi.genesis_path ) );
           ctx->out_fd = openat( ctx->out_dir_fd, "genesis.bin.partial", O_CREAT|O_WRONLY|O_CLOEXEC|O_TRUNC, S_IRUSR|S_IWUSR );
           if( FD_UNLIKELY( -1==ctx->out_fd ) ) FD_LOG_ERR(( "openat() failed for genesis file `%s` (%i-%s)", partialname, errno, fd_io_strerror( errno ) ));
 
+#ifdef __linux__
           if( FD_UNLIKELY( -1==syscall( __NR_setresuid, -1, uid, -1 ) ) ) FD_LOG_ERR(( "setresuid() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
           if( FD_UNLIKELY( -1==syscall( __NR_setresgid, -1, gid, -1 ) ) ) FD_LOG_ERR(( "setresgid() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+#else
+          if( FD_UNLIKELY( seteuid( uid ) ) ) FD_LOG_ERR(( "seteuid() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+          if( FD_UNLIKELY( setegid( gid ) ) ) FD_LOG_ERR(( "setegid() failed (%i-%s)", errno, fd_io_strerror( errno ) ));
+#endif
 
           ctx->local_genesis = 0;
           ctx->client = fd_genesis_client_join( fd_genesis_client_new( _client ) );
@@ -535,6 +551,7 @@ rlimit_file_cnt( fd_topo_t const *      topo FD_PARAM_UNUSED,
          tile->genesi.entrypoints_cnt; /* for the client */
 }
 
+#ifdef __linux__
 static ulong
 populate_allowed_seccomp( fd_topo_t const *      topo,
                           fd_topo_tile_t const * tile,
@@ -560,6 +577,7 @@ populate_allowed_seccomp( fd_topo_t const *      topo,
   populate_sock_filter_policy_fd_genesi_tile( out_cnt, out, (uint)fd_log_private_logfile_fd(), in_fd, out_fd, out_dir_fd );
   return sock_filter_policy_fd_genesi_tile_instr_cnt;
 }
+#endif
 
 static ulong
 populate_allowed_fds( fd_topo_t const *      topo,
@@ -612,7 +630,9 @@ fd_topo_run_tile_t fd_tile_genesi = {
   .rlimit_file_cnt_fn       = rlimit_file_cnt,
   .allow_connect            = 1,
   .allow_renameat           = 1,
+#ifdef __linux__
   .populate_allowed_seccomp = populate_allowed_seccomp,
+#endif
   .populate_allowed_fds     = populate_allowed_fds,
   .loose_footprint          = loose_footprint,
   .scratch_align            = scratch_align,

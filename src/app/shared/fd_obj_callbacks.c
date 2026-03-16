@@ -245,8 +245,10 @@ tile_footprint( fd_topo_t const *     topo,
   FD_TEST( tile );
 
   fd_topo_run_tile_t runner = fdctl_tile_run( tile );
-  if( FD_LIKELY( runner.scratch_footprint ) ) return runner.scratch_footprint( tile );
-  else                                        return 0UL;
+  ulong footprint = 0UL;
+  if( FD_LIKELY( runner.scratch_footprint ) ) footprint = runner.scratch_footprint( tile );
+  if( FD_UNLIKELY( !footprint ) ) FD_LOG_NOTICE(( "Tile `%s` has 0 footprint", tile->name ));
+  return footprint;
 }
 
 static ulong

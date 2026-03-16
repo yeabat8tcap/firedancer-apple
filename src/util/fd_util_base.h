@@ -504,6 +504,12 @@ static inline void populate_sock_filter_policy_run( ulong a, struct sock_filter 
 #define sock_filter_policy_fd_solcap_tile_instr_cnt 0
 #define sock_filter_policy_monitor_gossip_instr_cnt   0
 #define sock_filter_policy_fd_accdb_tile_instr_cnt    0
+#define sock_filter_policy_fd_snapdc_tile_instr_cnt   0
+#define sock_filter_policy_fd_snapwm_tile_vinyl_instr_cnt 0
+#define sock_filter_policy_fd_snapct_tile_instr_cnt   0
+#define sock_filter_policy_fd_snapld_tile_instr_cnt   0
+#define sock_filter_policy_fd_snapin_tile_instr_cnt   0
+#define sock_filter_policy_fd_replay_tile_instr_cnt   0
 
 static inline void populate_sock_filter_policy_fd_txsend_tile( ulong a, struct sock_filter * b, uint c ) { (void)a; (void)b; (void)c; }
 static inline void populate_sock_filter_policy_fd_snaplv_tile( ulong a, struct sock_filter * b, uint c ) { (void)a; (void)b; (void)c; }
@@ -547,6 +553,12 @@ static inline void populate_sock_filter_policy_fd_metric_tile( ulong a, struct s
 static inline void populate_sock_filter_policy_fd_diag_tile( ulong a, struct sock_filter * b, uint c ) { (void)a; (void)b; (void)c; }
 static inline void populate_sock_filter_policy_fd_sock_tile( ulong a, struct sock_filter * b, uint c, uint d, uint e, uint f ) { (void)a; (void)b; (void)c; (void)d; (void)e; (void)f; }
 static inline void populate_sock_filter_policy_fd_xdp_tile( ulong a, struct sock_filter * b, uint c, uint d, uint e ) { (void)a; (void)b; (void)c; (void)d; (void)e; }
+static inline void populate_sock_filter_policy_fd_snapdc_tile( ulong a, struct sock_filter * b, uint c ) { (void)a; (void)b; (void)c; }
+static inline void populate_sock_filter_policy_fd_snapwm_tile_vinyl( ulong a, struct sock_filter * b, uint c ) { (void)a; (void)b; (void)c; }
+static inline void populate_sock_filter_policy_fd_snapct_tile( ulong a, struct sock_filter * b, uint c, uint d, uint e, uint f, uint g ) { (void)a; (void)b; (void)c; (void)d; (void)e; (void)f; (void)g; }
+static inline void populate_sock_filter_policy_fd_snapld_tile( ulong a, struct sock_filter * b, uint c, uint d, uint e, uint f ) { (void)a; (void)b; (void)c; (void)d; (void)e; (void)f; }
+static inline void populate_sock_filter_policy_fd_snapin_tile( ulong a, struct sock_filter * b, uint c ) { (void)a; (void)b; (void)c; }
+static inline void populate_sock_filter_policy_fd_replay_tile( ulong a, struct sock_filter * b, uint c ) { (void)a; (void)b; (void)c; }
 
 /* uring stubs */
 static inline uint fd_io_uring_cq_overflow( void * a ) { (void)a; return 0; }

@@ -9,6 +9,7 @@
 #include "../../../../util/clock/fd_clock.h"
 
 #include <errno.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
 #include <stdio.h>

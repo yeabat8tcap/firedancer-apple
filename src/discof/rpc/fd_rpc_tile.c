@@ -1900,8 +1900,13 @@ populate_allowed_seccomp( fd_topo_t const *      topo,
   FD_SCRATCH_ALLOC_INIT( l, scratch );
   fd_rpc_tile_t * ctx = FD_SCRATCH_ALLOC_APPEND( l, alignof( fd_rpc_tile_t ), sizeof( fd_rpc_tile_t ) );
 
+#if FD_HAS_SECCOMP
   populate_sock_filter_policy_fd_rpc_tile( out_cnt, out, (uint)fd_log_private_logfile_fd(), (uint)fd_http_server_fd( ctx->http ) );
   return sock_filter_policy_fd_rpc_tile_instr_cnt;
+#else
+  (void)out_cnt; (void)out; (void)ctx;
+  return 0UL;
+#endif
 }
 
 static ulong

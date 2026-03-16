@@ -35,9 +35,17 @@ void * fd_io_uring_fini( fd_io_uring_t * ring );
 
 #else /* !__linux__ */
 
+static inline fd_io_uring_params_t *
+fd_io_uring_params_init( fd_io_uring_params_t * params,
+                         uint                   depth ) {
+  (void)depth;
+  memset( params, 0, sizeof(fd_io_uring_params_t) );
+  return params;
+}
+
 static inline ulong fd_io_uring_shmem_align( void ) { return 1UL; }
 static inline ulong fd_io_uring_shmem_footprint( ulong sq_depth, ulong cq_depth ) { (void)sq_depth; (void)cq_depth; return 0UL; }
-static inline fd_io_uring_t * fd_io_uring_init_shmem( fd_io_uring_t * ring, void * params, void * shmem, ulong sq_depth, ulong cq_depth ) { (void)ring; (void)params; (void)shmem; (void)sq_depth; (void)cq_depth; return NULL; }
+static inline fd_io_uring_t * fd_io_uring_init_shmem( fd_io_uring_t * ring, fd_io_uring_params_t * params, void * shmem, ulong sq_depth, ulong cq_depth ) { (void)ring; (void)params; (void)shmem; (void)sq_depth; (void)cq_depth; return NULL; }
 static inline void * fd_io_uring_fini( fd_io_uring_t * ring ) { return ring; }
 
 #endif /* __linux__ */
