@@ -23,8 +23,8 @@ user = "8tcapital"
     expected_genesis_hash = "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d"
 
 [accounts]
-    # Adjusted for 64GB Firedancer allocation, leaving ~64GB for the host OS + Jupiter API + Keeper
-    file_size_gib = 64
+    # Adjusted for 32GB Firedancer allocation to avoid ENOMEM on 128GB macOS
+    file_size_gib = 32
     max_accounts = 150_000_000
     cache_size_gib = 2
     in_memory_only = false

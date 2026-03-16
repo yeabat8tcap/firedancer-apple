@@ -358,13 +358,17 @@ typedef unsigned long  u_long;
 #define SIGPOLL 7 /* Standard value is 7, matches SIGEMT on macOS */
 #endif
 
-/* Networking Shims */
+#ifdef __APPLE__
+#define SOCK_CLOEXEC 0x1000000 /* Matches O_CLOEXEC */
+#define SOCK_NONBLOCK 0x4      /* Matches O_NONBLOCK */
+#else
 #ifndef SOCK_CLOEXEC
 #define SOCK_CLOEXEC 0x10000000 /* Dummy value, will use fcntl later if needed */
 #endif
 
 #ifndef SOCK_NONBLOCK
 #define SOCK_NONBLOCK 0x20000000 /* Dummy value, will use fcntl later if needed */
+#endif
 #endif
 
 #ifndef SOL_TCP
@@ -464,7 +468,7 @@ static inline int   fd_sandbox_requires_cap_sys_admin( uint u, uint g ) { (void)
 static inline int prctl( int a, ... ) { (void)a; return 0; }
 
 #ifndef O_CLOEXEC
-#define O_CLOEXEC 0
+#define O_CLOEXEC 0x1000000
 #endif
 #ifndef MAP_STACK
 #define MAP_STACK 0
@@ -472,7 +476,22 @@ static inline int prctl( int a, ... ) { (void)a; return 0; }
 #ifndef MAP_HUGETLB
 #define MAP_HUGETLB 0
 #endif
-static inline int pipe2( int fds[2], int flags ) { (void)flags; return pipe( fds ); }
+#include <fcntl.h>
+static inline int pipe2( int fds[2], int flags ) {
+  int res = pipe( fds );
+  if( res==-1 ) return -1;
+  if( flags & O_CLOEXEC ) {
+    fcntl( fds[0], F_SETFD, FD_CLOEXEC );
+    fcntl( fds[1], F_SETFD, FD_CLOEXEC );
+  }
+  if( flags & O_NONBLOCK ) {
+    int f0 = fcntl( fds[0], F_GETFL, 0 );
+    int f1 = fcntl( fds[1], F_GETFL, 0 );
+    fcntl( fds[0], F_SETFL, f0 | O_NONBLOCK );
+    fcntl( fds[1], F_SETFL, f1 | O_NONBLOCK );
+  }
+  return 0;
+}
 
 #define sock_filter_policy_monitor_instr_cnt 0
 #define sock_filter_policy_watch_instr_cnt   0
