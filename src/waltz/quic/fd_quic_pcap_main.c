@@ -8,9 +8,20 @@
 #include "fd_quic.h"
 
 #if defined(__APPLE__)
-/* macOS provides memmem in string.h when _DARWIN_C_SOURCE is defined */
-#else
-/* Fallback for other platforms if needed, though Firedancer usually targets Linux */
+#include <string.h>
+static void *
+memmem( const void *l, size_t l_len, const void *s, size_t s_len ) {
+  if( s_len == 0 ) return (void *)l;
+  if( l_len < s_len ) return NULL;
+  const char *cl = (const char *)l;
+  const char *cs = (const char *)s;
+  char *cur = (char *)cl;
+  char *last = (char *)cl + l_len - s_len;
+  for( ; cur <= last; cur++ ) {
+    if( *cur == *cs && memcmp( cur, cs, s_len ) == 0 ) return cur;
+  }
+  return NULL;
+}
 #endif
 #include "../../ballet/hex/fd_hex.h"
 #include "../../waltz/quic/fd_quic_proto.h"

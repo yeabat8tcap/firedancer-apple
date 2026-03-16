@@ -1,57 +1,82 @@
 name = "apple-validator"
-user = "8tcapital"
+user = "8tcap"
 
-[paths]
-    base = "/Users/8tcapital/firedancer/apple-validator"
-    identity_key = "/Users/8tcapital/apex-liquidator/firedancer-apple/identity.json"
-    vote_account = "/Users/8tcapital/apex-liquidator/firedancer-apple/vote.json"
+scratch_directory = "/Users/8tcap/firedancer/apple-validator"
 
 [log]
-    path = "/Users/8tcapital/firedancer/logs/validator.log"
+    path = "/tmp/firedancer-validator.log"
     level_stderr = "NOTICE"
 
 [gossip]
+    port_check = false
     entrypoints = [
         "entrypoint.mainnet-beta.solana.com:8001",
         "entrypoint2.mainnet-beta.solana.com:8001",
         "entrypoint3.mainnet-beta.solana.com:8001",
         "entrypoint4.mainnet-beta.solana.com:8001",
         "entrypoint5.mainnet-beta.solana.com:8001",
+        # Added Jito Block Engine entrypoints for broader reach
+        "amsterdam.mainnet.block-engine.jito.wtf:8001",
+        "frankfurt.mainnet.block-engine.jito.wtf:8001",
+        "ny.mainnet.block-engine.jito.wtf:8001",
+        "tokyo.mainnet.block-engine.jito.wtf:8001",
     ]
 
 [consensus]
     expected_genesis_hash = "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d"
+    identity_path = "/Users/8tcap/scalar-crater/apex_liquidator/firedancer-apple/identity.json"
+    vote_account_path = "/Users/8tcap/scalar-crater/apex_liquidator/firedancer-apple/vote.json"
+    # known_validators = [
+    #     "7Np41oeYqPefeNQEHSv1bDdXZQAdam391nB1rXsqQf4",
+    #     "GdnSyH3YtwcxFvQrVVJMm1JhTS4QVX7MFsX56uJLUfiZ",
+    #     "DE1bawNcRJB9rVm3buygWjpeHjRAiK3Aepq2481N71Q",
+    #     "CakcnaRDHka2gXyfbEd2d3xsvkjkYv3y5A2U2aMcN3pU",
+    # ]
+
+[rpc]
+    port = 8899
+    public_address = "66.253.170.50:8899"
 
 [accounts]
     # Adjusted for 32GB Firedancer allocation to avoid ENOMEM on 128GB macOS
-    file_size_gib = 32
-    max_accounts = 150_000_000
-    cache_size_gib = 2
-    in_memory_only = false
-    io_provider = "portable"
+    # file_size_gib = 32
+    # max_accounts = 150_000_000
+    # cache_size_gib = 2
+    # in_memory_only = false
+    # io_provider = "portable"
 
 [hugetlbfs]
-    mount_path = "/Users/8tcapital/firedancer/workspaces"
+    mount_path = "/Users/8tcap/firedancer/workspaces"
 
 [layout]
     # Virtual over-subscription for macOS
-    affinity = "f128"
-    net_tile_count = 1
-    quic_tile_count = 1
-    resolv_tile_count = 1
-    verify_tile_count = 4
-    gossvf_tile_count = 1
-    execle_tile_count = 1
-    execrp_tile_count = 4
-    shred_tile_count = 1
-    sign_tile_count = 2
-    snapshot_hash_tile_count = 2
-    snapwr_tile_count = 1
+    affinity = "auto"
+    agave_affinity = "auto"
+    # net_tile_count = 1
+    # quic_tile_count = 1
+    # resolv_tile_count = 1
+    # verify_tile_count = 4
+    # gossvf_tile_count = 1
+    # execle_tile_count = 1
+    # execrp_tile_count = 4
+    # shred_tile_count = 1
+    # sign_tile_count = 2
+    # snapshot_hash_tile_count = 2
+    # snapwr_tile_count = 1
 
 [snapshots]
-    incremental_snapshots = true
-    [snapshots.sources]
-        servers = [ "https://api.mainnet-beta.solana.com" ]
+    # incremental_snapshots = true
+    # [snapshots.sources]
+    #    servers = [ "https://api.mainnet-beta.solana.com" ]
 [net]
     provider = "socket"
-    interface = "lo0" # Use loopback on macOS for now
+    interface = "en1" # Use Wi-Fi/Ethernet interface for gossip
+
+[tiles]
+    [tiles.gui]
+        enabled = false
+    [tiles.metric]
+        prometheus_listen_port = 8123
+
+[ledger]
+    limit_size = 400_000_000 # Optimized for 512GB Mac Studio

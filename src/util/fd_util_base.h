@@ -585,7 +585,7 @@ static inline void populate_sock_filter_policy_fd_snapwm_tile_vinyl( ulong a, st
 static inline void populate_sock_filter_policy_fd_snapct_tile( ulong a, struct sock_filter * b, uint c, uint d, uint e, uint f, uint g ) { (void)a; (void)b; (void)c; (void)d; (void)e; (void)f; (void)g; }
 static inline void populate_sock_filter_policy_fd_snapld_tile( ulong a, struct sock_filter * b, uint c, uint d, uint e, uint f ) { (void)a; (void)b; (void)c; (void)d; (void)e; (void)f; }
 static inline void populate_sock_filter_policy_fd_snapin_tile( ulong a, struct sock_filter * b, uint c ) { (void)a; (void)b; (void)c; }
-static inline void populate_sock_filter_policy_fd_replay_tile( ulong a, struct sock_filter * b, uint c ) { (void)a; (void)b; (void)c; }
+
 
 /* uring stubs */
 static inline uint fd_io_uring_cq_overflow( void * a ) { (void)a; return 0; }

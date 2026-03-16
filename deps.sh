@@ -323,6 +323,7 @@ check_arch_pkgs () {
 }
 
 check () {
+  PACKAGE_INSTALL_CMD=()
   DISTRO="${ID_LIKE:-${ID:-}}"
   for word in $DISTRO ; do
     case "$word" in
@@ -337,7 +338,7 @@ check () {
     esac
   done
 
-  if [[ ! -z "${PACKAGE_INSTALL_CMD[@]}" ]]; then
+  if [[ -n "${PACKAGE_INSTALL_CMD[*]:-}" ]]; then
     echo "[!] Found missing system packages"
     echo "[?] This is fixed by the following command:"
     echo "        ${PACKAGE_INSTALL_CMD[@]}"
@@ -441,7 +442,7 @@ install_s2n () {
   if [[ "$(uname -m)" == x86_64 ]]; then
     make -C x86
     cp x86/libs2nbignum.a "$PREFIX/lib"
-  elif [[ "$(uname -m)" == aarch64 ]]; then
+  elif [[ "$(uname -m)" == aarch64 || "$(uname -m)" == arm64 ]]; then
     make -C arm
     cp arm/libs2nbignum.a "$PREFIX/lib"
   fi

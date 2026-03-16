@@ -1641,7 +1641,6 @@ fd_log_private_stack_discover( ulong   stack_sz,
 
   *_stack0 = stack0;
   *_stack1 = stack1;
-#endif
 }
 
 

@@ -678,7 +678,6 @@ STEM_(run1)( ulong                        in_cnt,
     ulong chunk    = (ulong)this_in_mline->chunk;  (void)chunk;
     ulong sz       = (ulong)this_in_mline->sz;     (void)sz;
     ulong ctl      = (ulong)this_in_mline->ctl;    (void)ctl;
-    if( chunk == 0 ) FD_LOG_ERR(( "DEBUG: seq_found=%lu diff=%ld seq_test=%lu mline=%p idx=%u", seq_found, diff, this_in_mline->seq, (void *)this_in_mline, this_in->idx ));
     ulong tsorig   = (ulong)this_in_mline->tsorig; (void)tsorig;
     ulong tspub    = (ulong)this_in_mline->tspub;  (void)tspub;
 

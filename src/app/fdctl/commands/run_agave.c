@@ -128,6 +128,18 @@ agave_boot( config_t const * config ) {
   }
 
   /* gossip */
+  char gossip_host_buf[ 256 ] = "";
+  if( strcmp( config->frankendancer.rpc.public_address, "" ) ) {
+    char * colon = strchr( config->frankendancer.rpc.public_address, ':' );
+    if( colon ) {
+      ulong len = (ulong)(colon - config->frankendancer.rpc.public_address);
+      if( len < sizeof(gossip_host_buf) ) {
+        memcpy( gossip_host_buf, config->frankendancer.rpc.public_address, len );
+        gossip_host_buf[ len ] = '\0';
+        ADD( "--gossip-host", gossip_host_buf );
+      }
+    }
+  }
   for( ulong i=0UL; i<config->gossip.entrypoints_cnt; i++ ) ADD( "--entrypoint", config->gossip.entrypoints[ i ] );
   if( !config->frankendancer.gossip.port_check ) ADD1( "--no-port-check" );
   ADDH( "--gossip-port", config->gossip.port );
