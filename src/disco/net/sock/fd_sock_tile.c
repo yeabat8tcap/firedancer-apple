@@ -258,17 +258,25 @@ privileged_init( fd_topo_t *      topo,
 #ifdef __MACH__
   if( FD_LIKELY( tx_sock >= 0 ) ) fcntl( tx_sock, F_SETFD, FD_CLOEXEC );
 #endif
+#ifdef __APPLE__
+  if( FD_UNLIKELY( tx_sock<0 ) ) {
+    FD_LOG_WARNING(( "socket(AF_INET,SOCK_RAW,17) failed (%i-%s). Networking will be disabled unless run as root.", errno, fd_io_strerror( errno ) ));
+  }
+#else
   if( FD_UNLIKELY( tx_sock<0 ) ) {
     FD_LOG_ERR(( "socket(AF_INET,SOCK_RAW|SOCK_CLOEXEC,17) failed (%i-%s)", errno, fd_io_strerror( errno ) ));
   }
+#endif
 
-  if( FD_UNLIKELY( 0!=setsockopt( tx_sock, SOL_SOCKET, SO_SNDBUF, &tile->sock.so_sndbuf, sizeof(int) ) ) ) {
-    FD_LOG_ERR(( "setsockopt(SOL_SOCKET,SO_SNDBUF,%i) failed (%i-%s)", tile->sock.so_sndbuf, errno, fd_io_strerror( errno ) ));
-  }
-
-  uchar mcast_ttl = 64;
-  if( FD_UNLIKELY( 0!=setsockopt( tx_sock, IPPROTO_IP, IP_MULTICAST_TTL, &mcast_ttl, sizeof(mcast_ttl) ) ) ) {
-    FD_LOG_ERR(( "setsockopt(IPPROTO_IP,IP_MULTICAST_TTL,%u) failed (%i-%s)", (uint)mcast_ttl, errno, fd_io_strerror( errno ) ));
+  if( tx_sock >= 0 ) {
+    if( FD_UNLIKELY( 0!=setsockopt( tx_sock, SOL_SOCKET, SO_SNDBUF, &tile->sock.so_sndbuf, sizeof(int) ) ) ) {
+      FD_LOG_ERR(( "setsockopt(SOL_SOCKET,SO_SNDBUF,%i) failed (%i-%s)", tile->sock.so_sndbuf, errno, fd_io_strerror( errno ) ));
+    }
+  
+    uchar mcast_ttl = 64;
+    if( FD_UNLIKELY( 0!=setsockopt( tx_sock, IPPROTO_IP, IP_MULTICAST_TTL, &mcast_ttl, sizeof(mcast_ttl) ) ) ) {
+      FD_LOG_ERR(( "setsockopt(IPPROTO_IP,IP_MULTICAST_TTL,%u) failed (%i-%s)", (uint)mcast_ttl, errno, fd_io_strerror( errno ) ));
+    }
   }
 
   ctx->tx_sock      = tx_sock;
@@ -308,6 +316,8 @@ unprivileged_init( fd_topo_t *      topo,
     ctx->link_tx[ i ].base   = topo->workspaces[ topo->objs[ link->dcache_obj_id ].wksp_id ].wksp;
     ctx->link_tx[ i ].chunk0 = fd_dcache_compact_chunk0( ctx->link_tx[ i ].base, link->dcache );
     ctx->link_tx[ i ].wmark  = fd_dcache_compact_wmark(  ctx->link_tx[ i ].base, link->dcache, link->mtu );
+    strncpy( ctx->link_tx[ i ].name, topo->links[ tile->in_link_id[ i ] ].name, 31 );
+    ctx->link_tx[ i ].name[ 31 ] = '\0';
   }
 
 }
@@ -563,7 +573,7 @@ during_frag( fd_sock_tile_t * ctx,
              ulong            sz,
              ulong            ctl FD_PARAM_UNUSED ) {
   if( FD_UNLIKELY( chunk<ctx->link_tx[ in_idx ].chunk0 || chunk>ctx->link_tx[ in_idx ].wmark || sz>FD_NET_MTU ) ) {
-    FD_LOG_ERR(( "chunk %lu %lu corrupt, not in range [%lu,%lu]", chunk, sz, ctx->link_tx[ in_idx ].chunk0, ctx->link_tx[ in_idx ].wmark ));
+    FD_LOG_ERR(( "chunk %lu sz %lu corrupt, not in range [%lu,%lu] for link %s (in_idx %lu)", chunk, sz, ctx->link_tx[ in_idx ].chunk0, ctx->link_tx[ in_idx ].wmark, ctx->link_tx[ in_idx ].name, in_idx ));
   }
 
   ulong const hdr_min = sizeof(fd_eth_hdr_t)+sizeof(fd_ip4_hdr_t)+sizeof(fd_udp_hdr_t);

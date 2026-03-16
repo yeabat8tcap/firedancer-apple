@@ -43,6 +43,7 @@ struct fd_sock_link_tx {
   void * base;
   ulong  chunk0;
   ulong  wmark;
+  char   name[ 32 ];
 };
 
 typedef struct fd_sock_link_tx fd_sock_link_tx_t;

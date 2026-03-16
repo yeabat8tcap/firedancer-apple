@@ -319,7 +319,7 @@ fd_wsample_new_add( void * shmem,
 
   if( FD_UNLIKELY( weight==0UL ) ) {
     FD_LOG_WARNING(( "zero weight entry found" ));
-    return NULL;
+    // return NULL;
   }
   if( FD_UNLIKELY( sampler->total_weight+weight<weight ) ) {
     FD_LOG_WARNING(( "total weight too large" ));
