@@ -15,6 +15,7 @@ scratch_directory = "/Users/8tcap/firedancer/apple-validator"
         "entrypoint3.mainnet-beta.solana.com:8001",
         "entrypoint4.mainnet-beta.solana.com:8001",
         "entrypoint5.mainnet-beta.solana.com:8001",
+        "38.46.223.227:8000",
         # Added Jito Block Engine entrypoints for broader reach
         "amsterdam.mainnet.block-engine.jito.wtf:8001",
         "frankfurt.mainnet.block-engine.jito.wtf:8001",
@@ -47,6 +48,7 @@ scratch_directory = "/Users/8tcap/firedancer/apple-validator"
 
 [hugetlbfs]
     mount_path = "/Users/8tcap/firedancer/workspaces"
+    max_page_size = "normal"
 
 [layout]
     # Virtual over-subscription for macOS
@@ -65,7 +67,7 @@ scratch_directory = "/Users/8tcap/firedancer/apple-validator"
     # snapwr_tile_count = 1
 
 [snapshots]
-    # incremental_snapshots = true
+    incremental_snapshots = true
     # [snapshots.sources]
     #    servers = [ "https://api.mainnet-beta.solana.com" ]
 [net]

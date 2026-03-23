@@ -2,3 +2,6 @@
 build_output*.txt
 undefined_symbols.txt
 build/
+fdbuild/
+opt/
+src/app/fdctl/fdctl.c

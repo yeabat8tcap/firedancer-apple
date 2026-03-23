@@ -90,6 +90,12 @@ struct fd_sock_tile {
   uchar * tx_ptr; /* in [tx_scratch0,tx_scratch1) */
 
   fd_sock_tile_metrics_t metrics;
+
+#ifdef __APPLE__
+  int     bpf_fd;
+  uchar * bpf_buf;
+  ulong   bpf_buf_len;
+#endif
 };
 
 typedef struct fd_sock_tile fd_sock_tile_t;

@@ -14,6 +14,14 @@
 #include <netinet/in.h> /* sockaddr_in */
 #include <sys/socket.h> /* socket */
 #include "../../metrics/fd_metrics.h"
+#include <stdio.h> /* snprintf */
+
+#ifdef __APPLE__
+#include <net/bpf.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <sys/uio.h>
+#endif
 
 #include "generated/fd_sock_tile_seccomp.h"
 
@@ -97,6 +105,9 @@ scratch_footprint( fd_topo_tile_t const * tile FD_PARAM_UNUSED ) {
   l = FD_LAYOUT_APPEND( l, alignof(struct sockaddr_in), STEM_BURST*sizeof(struct sockaddr_in) );
   l = FD_LAYOUT_APPEND( l, alignof(struct mmsghdr),     STEM_BURST*sizeof(struct mmsghdr)     );
   l = FD_LAYOUT_APPEND( l, FD_CHUNK_ALIGN,              tx_scratch_footprint()                );
+#ifdef __APPLE__
+  l = FD_LAYOUT_APPEND( l, 8,                           16777216UL );
+#endif
   return FD_LAYOUT_FINI( l, scratch_align() );
 }
 
@@ -282,6 +293,45 @@ privileged_init( fd_topo_t *      topo,
   ctx->tx_sock      = tx_sock;
   ctx->bind_address = tile->sock.net.bind_address;
 
+#ifdef __APPLE__
+  int bpf_fd = -1;
+  char bpf_path[32];
+  struct ifreq ifr;
+  memset( &ifr, 0, sizeof(ifr) );
+
+  for( int i=0; i<256; i++ ) {
+    snprintf( bpf_path, sizeof(bpf_path), "/dev/bpf%d", i );
+    bpf_fd = open( bpf_path, O_RDWR );
+    if( bpf_fd >= 0 ) break;
+  }
+  if( bpf_fd >= 0 ) {
+    strncpy( ifr.ifr_name, "en1", sizeof(ifr.ifr_name)-1 );
+    if( ioctl( bpf_fd, BIOCSETIF, &ifr ) < 0 ) {
+      strncpy( ifr.ifr_name, "en0", sizeof(ifr.ifr_name)-1 );
+      if( ioctl( bpf_fd, BIOCSETIF, &ifr ) < 0 ) {
+        FD_LOG_WARNING(( "BIOCSETIF failed for en1 and en0 on macOS" ));
+        close( bpf_fd );
+        bpf_fd = -1;
+      }
+    }
+  }
+  if( bpf_fd >= 0 ) {
+    uint enable = 1;
+    if( ioctl( bpf_fd, BIOCIMMEDIATE, &enable ) < 0 ) FD_LOG_WARNING(( "BIOCIMMEDIATE failed" ));
+    if( ioctl( bpf_fd, BIOCPROMISC, NULL ) < 0 ) FD_LOG_WARNING(( "BIOCPROMISC failed" ));
+    uint blen = 0;
+    if( ioctl( bpf_fd, BIOCGBLEN, &blen ) < 0 ) blen = 32768;
+    fcntl( bpf_fd, F_SETFL, O_NONBLOCK );
+    ctx->bpf_buf_len = blen;
+    ctx->bpf_buf     = FD_SCRATCH_ALLOC_APPEND( l, 8, blen );
+    ctx->bpf_fd      = bpf_fd;
+    FD_LOG_NOTICE(( "Successfully attached BPF to %s: %u bytes", ifr.ifr_name, blen ));
+  } else {
+    FD_LOG_WARNING(( "Failed to open BPF file descriptor. Requires sudo. Falling back to XNU UDP." ));
+    ctx->bpf_fd = -1;
+  }
+#endif
+
 }
 
 static void
@@ -458,9 +508,89 @@ poll_rx_socket( fd_sock_tile_t *    ctx,
   return (ulong)msg_cnt;
 }
 
+#ifdef __APPLE__
+static ulong
+poll_rx_bpf( fd_sock_tile_t *    ctx,
+             fd_stem_context_t * stem ) {
+  long ts = fd_tickcount();
+  ulong tspub = fd_frag_meta_ts_comp( ts );
+  
+  ssize_t n = read( ctx->bpf_fd, ctx->bpf_buf, ctx->bpf_buf_len );
+  if( FD_UNLIKELY( n<=0 ) ) return 0UL;
+  
+  ulong pkt_cnt = 0UL;
+  uchar * ptr = ctx->bpf_buf;
+  uchar * end = ptr + n;
+  
+  while( ptr < end ) {
+    struct bpf_hdr * bh = (struct bpf_hdr *)ptr;
+    uchar * packet = ptr + bh->bh_hdrlen;
+    ulong caplen = bh->bh_caplen;
+    
+    if( FD_LIKELY( caplen >= 42UL ) ) { /* Eth + IP4 + UDP */
+      fd_eth_hdr_t * eth = (fd_eth_hdr_t *)packet;
+      if( FD_LIKELY( eth->net_type == fd_ushort_bswap( FD_ETH_HDR_TYPE_IP ) ) ) {
+        fd_ip4_hdr_t * ip = (fd_ip4_hdr_t *)( packet + sizeof(fd_eth_hdr_t) );
+        if( FD_LIKELY( ip->protocol == FD_IP4_HDR_PROTOCOL_UDP && FD_IP4_GET_VERSION(*ip) == 4 ) ) {
+          fd_udp_hdr_t * udp = (fd_udp_hdr_t *)( packet + sizeof(fd_eth_hdr_t) + sizeof(fd_ip4_hdr_t) );
+          ushort dport = fd_ushort_bswap( udp->net_dport );
+          
+          uchar rx_link = 0xFF;
+          uint  match_idx = 0;
+          for( uint j=0; j<ctx->sock_cnt; j++ ) {
+            if( ctx->rx_sock_port[ j ] == dport ) {
+              rx_link = ctx->link_rx_map[ j ];
+              match_idx = j;
+              break;
+            }
+          }
+          
+          if( rx_link != 0xFF ) {
+            fd_sock_link_rx_t * link = ctx->link_rx + rx_link;
+            ulong chunk = fd_dcache_compact_next( link->chunk, FD_NET_MTU, link->chunk0, link->wmark );
+            uchar * dest = fd_chunk_to_laddr( link->base, chunk );
+            
+            ulong payload_sz = fd_ushort_bswap( udp->net_len ) - 8;
+            ulong frame_sz = payload_sz + 42UL;
+            if( FD_LIKELY( caplen >= frame_sz && frame_sz <= FD_NET_MTU ) ) {
+              memcpy( dest, packet, frame_sz );
+              
+              ulong sig = fd_disco_netmux_sig(
+                FD_LOAD( uint, ip->saddr_c ),
+                fd_ushort_bswap( udp->net_sport ),
+                FD_LOAD( uint, ip->daddr_c ),
+                ctx->proto_id[ match_idx ],
+                42UL
+              );
+              
+              fd_stem_publish( stem, rx_link, sig, chunk, frame_sz, 0UL, 0UL, tspub );
+              link->chunk = chunk;
+              pkt_cnt++;
+            }
+          }
+        }
+      }
+    }
+    ptr += BPF_WORDALIGN( bh->bh_hdrlen + bh->bh_caplen );
+  }
+  
+  if( pkt_cnt ) {
+    ctx->metrics.rx_pkt_cnt += pkt_cnt;
+    ctx->metrics.rx_bytes_total += (ulong)n;
+  }
+  return pkt_cnt;
+}
+#endif
+
 static ulong
 poll_rx( fd_sock_tile_t *    ctx,
          fd_stem_context_t * stem ) {
+#ifdef __APPLE__
+  if( FD_LIKELY( ctx->bpf_fd >= 0 ) ) {
+    ctx->tx_idle_cnt = 0;
+    return poll_rx_bpf( ctx, stem );
+  }
+#endif
   ulong pkt_cnt = 0UL;
   if( FD_UNLIKELY( ctx->batch_cnt ) ) {
     FD_LOG_ERR(( "Batch is not clean" ));
