@@ -1,4 +1,4 @@
-# [Firedancer](https://jumpcrypto.com/firedancer/) 🔥💃
+# [Firedancer](https://jumpcrypto.com/firedancer/) 🔥💃🍏
 
 Firedancer is a new validator client for Solana.
 
